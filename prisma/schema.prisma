@@ -1,0 +1,105 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Category {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  description String?
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("categories")
+}
+
+model Product {
+  id                  String            @id @default(uuid())
+  name                String            @unique
+  categoryId          String            @map("category_id")
+  category            Category          @relation(fields: [categoryId], references: [id])
+  unitPrice           Decimal           @map("unit_price") // Price per single item
+  boxPrice            Decimal           @map("box_price")  // Price per box
+  quantityInBox       Int               @map("quantity_in_box") // Number of pieces per box
+  stockCount          Int               @default(0) @map("stock_count") // Total stock in pieces
+  minStockLimit       Int               @default(10) @map("min_stock_limit") // Minimum pieces threshold for alerts
+  isLowStockAlertSent Boolean           @default(false) @map("is_low_stock_alert_sent")
+  isDeleted           Boolean           @default(false) @map("is_deleted")
+  createdAt           DateTime          @default(now()) @map("created_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
+  orderItems          SupplyOrderItem[]
+
+  @@map("products")
+}
+
+model Store {
+  id             String           @id @default(uuid())
+  name           String
+  ownerName      String           @map("owner_name")
+  phone          String           @unique
+  telegramChatId String?          @map("telegram_chat_id")
+  creditLimit    Decimal          @map("credit_limit")
+  paymentDays    Int              @map("payment_days")
+  currentDebt    Decimal          @default(0) @map("current_debt")
+  isDeleted      Boolean          @default(false) @map("is_deleted")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  supplyOrders   SupplyOrder[]
+  payments       PaymentHistory[]
+
+  @@map("stores")
+}
+
+model SupplyOrder {
+  id             String            @id @default(uuid())
+  storeId        String            @map("store_id")
+  store          Store             @relation(fields: [storeId], references: [id])
+  totalAmount    Decimal           @map("total_amount")
+  debtAmount     Decimal           @map("debt_amount") // Remaining unpaid debt for this order
+  status         String            @default("PENDING") // PENDING, DELIVERED, CANCELLED, PARTIALLY_PAID, PAID
+  isReminderSent Boolean           @default(false) @map("is_reminder_sent")
+  dueDate        DateTime          @map("due_date")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+  items          SupplyOrderItem[]
+
+  @@map("supply_orders")
+}
+
+model SupplyOrderItem {
+  id            String      @id @default(uuid())
+  supplyOrderId String      @map("supply_order_id")
+  supplyOrder   SupplyOrder @relation(fields: [supplyOrderId], references: [id], onDelete: Cascade)
+  productId     String      @map("product_id")
+  product       Product     @relation(fields: [productId], references: [id])
+  quantity      Int         // Number of units (boxes or pieces) ordered
+  unitType      String      @default("PIECE") @map("unit_type") // PIECE, BOX
+  price         Decimal     // Price per unit at the time of order (unitPrice or boxPrice)
+  totalPrice    Decimal     @map("total_price")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  @@map("supply_order_items")
+}
+
+model PaymentHistory {
+  id            String   @id @default(uuid())
+  storeId       String   @map("store_id")
+  store         Store    @relation(fields: [storeId], references: [id])
+  amount        Decimal
+  paymentMethod String   @map("payment_method") // CASH, CARD
+  note          String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("payment_histories")
+}
