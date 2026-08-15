@@ -39,8 +39,13 @@ app.use(cors());
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 
-// Serve static files for uploads
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// Serve static files for uploads with explicit CORS and Resource Policy headers
+app.use('/uploads', cors(), express.static(path.join(__dirname, '../uploads'), {
+  setHeaders: function (res, path, stat) {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+  }
+}));
 
 // 2. ROUTES
 // Default health check endpoint

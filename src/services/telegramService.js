@@ -98,7 +98,8 @@ const sendOrderInvoice = async (chatId, order, store) => {
   if (isNaN(numericChatId)) return;
 
   const formattedTotal = Number(order.totalAmount || 0).toLocaleString('uz-UZ');
-  const formattedPaid = Number(order.paidAmount || (order.totalAmount - order.debtAmount) || 0).toLocaleString('uz-UZ');
+  const paidAmountVal = Number(order.paidAmount) || (Number(order.totalAmount || 0) - Number(order.debtAmount || 0));
+  const formattedPaid = Number(paidAmountVal || 0).toLocaleString('uz-UZ');
   const formattedDebt = Number(order.debtAmount || 0).toLocaleString('uz-UZ');
   const currentTotalDebt = Number(store.currentDebt || 0) + Number(order.debtAmount || 0);
   const formattedCurrentDebt = currentTotalDebt.toLocaleString('uz-UZ');
