@@ -1,20 +1,28 @@
 const productService = require('../services/productService');
-const { createProductSchema } = require('../validations/productValidation');
+const { createProductSchema, updateProductSchema } = require('../validations/productValidation');
 const catchAsync = require('../utils/catchAsync');
 
 const productController = {
   createProduct: catchAsync(async (req, res, next) => {
-    let data = req.body;
-    if (data.stock !== undefined || data.boxes !== undefined) {
-      const stock = data.stock || 0;
-      const boxes = data.boxes || 0;
-      const boxQuantity = data.quantityInBox || 1;
-      
-      data.stockCount = stock + (boxes * boxQuantity);
+    let data = { ...req.body };
+    if (req.file) {
+      data.imageUrl = `/uploads/${req.file.filename}`;
     }
-    
+    const rawBoxes = Number(data.boxes || 0);
+    const rawStock = Number(data.stock  || 0);
+    if (rawBoxes > 0 || rawStock > 0) {
+      const boxQuantity = Number(data.quantityInBox || 1);
+      data.stockCount = rawStock + (rawBoxes * boxQuantity);
+    }
+    // Keep raw values for cost calculations in service
+    data._addedBoxes  = rawBoxes;
+    data._addedPieces = rawStock;
+
     // 1. Validate request body
     const validatedData = createProductSchema.parse(data);
+    // Restore meta fields (not in zod schema so they pass through if we set them manually)
+    validatedData._addedBoxes  = rawBoxes;
+    validatedData._addedPieces = rawStock;
     delete validatedData.stock;
     delete validatedData.boxes;
 
@@ -24,11 +32,10 @@ const productController = {
     // 3. Send response
     res.status(201).json({
       status: 'success',
-      data: {
-        product,
-      },
+      data: { product },
     });
   }),
+
 
   getAllProducts: catchAsync(async (req, res, next) => {
     const products = await productService.getAllProducts();
@@ -67,29 +74,29 @@ const productController = {
 
   updateProduct: catchAsync(async (req, res, next) => {
     const { id } = req.params;
-    const validatedData = createProductSchema.parse(req.body);
+    const rawBoxes = Number(req.body.boxes || 0);
+    const rawStock = Number(req.body.stock  || 0);
 
-    if (validatedData.stock !== undefined || validatedData.boxes !== undefined) {
-      const stock = validatedData.stock || 0;
-      const boxes = validatedData.boxes || 0;
-      const boxQuantity = validatedData.quantityInBox || 1;
-      
-      const totalStock = stock + (boxes * boxQuantity);
-      validatedData.stockCount = totalStock;
+    const validatedData = updateProductSchema.parse(req.body);
+
+    if (req.file) {
+      validatedData.imageUrl = `/uploads/${req.file.filename}`;
     }
-    
+
+    // Pass granular counts to service for correct balance deduction
+    validatedData._addedBoxes  = rawBoxes;
+    validatedData._addedPieces = rawStock;
     delete validatedData.stock;
     delete validatedData.boxes;
-    
+
     const product = await productService.updateProduct(id, validatedData);
 
     res.status(200).json({
       status: 'success',
-      data: {
-        product,
-      },
+      data: { product },
     });
   }),
+
 };
 
 module.exports = productController;

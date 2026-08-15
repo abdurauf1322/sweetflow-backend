@@ -5,11 +5,36 @@ const getClient = (tx) => tx || prisma;
 const productRepository = {
   async create(data, tx) {
     const client = getClient(tx);
+    // Explicitly pick only fields that exist in the Prisma schema.
+    // This prevents unknown fields like _addedBoxes, _addedPieces, stock, boxes
+    // (used for balance calculations) from causing Prisma errors.
+    const {
+      name,
+      categoryId,
+      unitPrice,
+      boxPrice,
+      costPrice,
+      boxCostPrice,
+      quantityInBox,
+      stockCount,
+      minStockLimit,
+      imageUrl,
+    } = data;
+
     return client.product.create({
-      data,
-      include: {
-        category: true,
+      data: {
+        name,
+        categoryId,
+        unitPrice,
+        boxPrice,
+        costPrice:    costPrice    ?? 0,
+        boxCostPrice: boxCostPrice ?? 0,
+        quantityInBox,
+        stockCount:   stockCount   ?? 0,
+        minStockLimit: minStockLimit ?? 10,
+        imageUrl:     imageUrl,
       },
+      include: { category: true },
     });
   },
 

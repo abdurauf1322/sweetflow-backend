@@ -131,6 +131,12 @@ const orderService = {
         });
       }
 
+      // d. Update system balance with the paid amount
+      if (paidAmount > 0) {
+        const balanceService = require('./balanceService');
+        await balanceService.updateBalance(paidAmount, tx);
+      }
+
       return newOrder;
     });
 

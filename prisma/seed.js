@@ -1,15 +1,19 @@
 const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
 async function main() {
   console.log('Seeding database with test data...');
 
   // 1. Clean existing records in order of dependencies
+  await prisma.paymentHistory.deleteMany();
   await prisma.supplyOrderItem.deleteMany();
   await prisma.supplyOrder.deleteMany();
   await prisma.product.deleteMany();
   await prisma.store.deleteMany();
   await prisma.category.deleteMany();
+  await prisma.user.deleteMany();
+
 
   console.log('Cleaned database tables.');
 
@@ -107,8 +111,40 @@ async function main() {
   });
 
   console.log('Created B2B store partners.');
+
+  // 5. Create Users
+  const hashedBossPassword = await bcrypt.hash('boss123', 10);
+  const hashedManagerPassword = await bcrypt.hash('manager123', 10);
+  const hashedSellerPassword = await bcrypt.hash('seller123', 10);
+
+  await prisma.user.create({
+    data: {
+      username: 'boss',
+      password: hashedBossPassword,
+      role: 'boss',
+    },
+  });
+
+  await prisma.user.create({
+    data: {
+      username: 'manager',
+      password: hashedManagerPassword,
+      role: 'manager',
+    },
+  });
+
+  await prisma.user.create({
+    data: {
+      username: 'seller',
+      password: hashedSellerPassword,
+      role: 'seller',
+    },
+  });
+
+  console.log('Created auth users.');
   console.log('Database seeding finished successfully! 🎉');
 }
+
 
 main()
   .catch((e) => {

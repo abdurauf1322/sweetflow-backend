@@ -52,6 +52,11 @@ const initBotHandler = () => {
         autoStart: true,
         params: { timeout: 10 },
       },
+      request: {
+        agentOptions: {
+          family: 4
+        }
+      }
     });
 
     console.log('🤖 [Bot Handler] Telegram bot polling ishga tushdi.');
@@ -153,7 +158,7 @@ const initBotHandler = () => {
     // ──────────────────────────────────────────────
     pollingBot.on('polling_error', (err) => {
       // Ignore common network timeouts silently
-      if (err.code === 'ETELEGRAM' || err.message?.includes('ECONNRESET')) return;
+      if (err.code === 'ETELEGRAM' || err.message?.includes('ECONNRESET') || err.message?.includes('EFATAL')) return;
       console.error('[Bot] Polling xatosi:', err.message);
     });
 

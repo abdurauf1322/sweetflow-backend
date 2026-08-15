@@ -268,6 +268,10 @@ const storeService = {
         }
       }
 
+      // 4. Update system balance
+      const balanceService = require('./balanceService');
+      await balanceService.updateBalance(amount, tx);
+
       return payment;
     });
   },
