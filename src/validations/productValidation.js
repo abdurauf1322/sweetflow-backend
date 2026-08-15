@@ -22,7 +22,7 @@ const baseProductSchema = z.object({
   minStockLimit: z.coerce.number().int('Min stock limit must be an integer').nonnegative('Min stock limit cannot be negative').optional(),
   stock: z.coerce.number().int().nonnegative().optional(),
   boxes: z.coerce.number().int().nonnegative().optional(),
-  imageUrl: z.string().url('Invalid image URL format').optional().or(z.string().startsWith('/uploads/').optional()).or(z.literal('')),
+  imageUrl: z.string().optional().or(z.literal('')),
 });
 
 const createProductSchema = baseProductSchema.extend({

@@ -6,7 +6,7 @@ const fs = require('fs');
 const router = express.Router();
 
 // Ensure uploads directory exists
-const uploadDir = path.join(__dirname, '../../uploads');
+const uploadDir = process.env.UPLOADS_DIR || path.join(process.cwd(), 'uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -39,8 +39,8 @@ router.post('/', upload.single('image'), (req, res) => {
     return res.status(400).json({ status: 'fail', message: 'No image uploaded' });
   }
 
-  // Construct URL path
-  const imageUrl = `/uploads/${req.file.filename}`;
+  // Construct URL path (Return only the filename)
+  const imageUrl = req.file.filename;
 
   res.status(200).json({
     status: 'success',

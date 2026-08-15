@@ -6,7 +6,7 @@ const productController = {
   createProduct: catchAsync(async (req, res, next) => {
     let data = { ...req.body };
     if (req.file) {
-      data.imageUrl = `/uploads/${req.file.filename}`;
+      data.imageUrl = req.file.filename;
     }
     const rawBoxes = Number(data.boxes || 0);
     const rawStock = Number(data.stock  || 0);
@@ -80,7 +80,7 @@ const productController = {
     const validatedData = updateProductSchema.parse(req.body);
 
     if (req.file) {
-      validatedData.imageUrl = `/uploads/${req.file.filename}`;
+      validatedData.imageUrl = req.file.filename;
     }
 
     // Pass granular counts to service for correct balance deduction

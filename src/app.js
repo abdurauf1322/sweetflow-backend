@@ -15,6 +15,7 @@ const expenseRoutes = require('./routes/expenseRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const purchaseRoutes = require('./routes/purchaseRoutes');
 const path = require('path');
+const fs = require('fs');
 
 
 const app = express();
@@ -39,8 +40,12 @@ app.use(cors());
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 
-// Serve static files for uploads with explicit CORS and Resource Policy headers
-app.use('/uploads', cors(), express.static(path.join(__dirname, '../uploads'), {
+// Serve static files for uploads with absolute path and explicit CORS and Resource Policy headers
+const uploadsDir = process.env.UPLOADS_DIR || path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+app.use('/uploads', cors(), express.static(uploadsDir, {
   setHeaders: function (res, path, stat) {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Cross-Origin-Resource-Policy', 'cross-origin');
