@@ -46,7 +46,7 @@ const productService = {
         });
       }
       return product;
-    });
+    }, { maxWait: 10000, timeout: 15000 });
   },
 
   async getAllProducts() {
@@ -172,7 +172,7 @@ const productService = {
       }
 
       return updatedProduct;
-    });
+    }, { maxWait: 10000, timeout: 15000 });
   },
 
   async getLowStockProducts() {

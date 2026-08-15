@@ -16,7 +16,7 @@ const expenseService = {
       await balanceService.updateBalance(-data.amount, tx);
 
       return createdExpense;
-    });
+    }, { maxWait: 10000, timeout: 15000 });
 
     // 3. Send Telegram bot alert
     try {

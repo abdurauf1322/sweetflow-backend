@@ -11,18 +11,20 @@ const balanceService = {
 
   async updateBalance(amount, tx) {
     const client = tx || prisma;
-    let systemBalance = await client.systemBalance.findFirst();
-    if (!systemBalance) {
-      systemBalance = await client.systemBalance.create({ data: { balance: 0 } });
-    }
-    return client.systemBalance.update({
-      where: { id: systemBalance.id },
-      data: {
-        balance: {
-          increment: amount
+    // Try to find existing balance first
+    const existing = await client.systemBalance.findFirst();
+    if (existing) {
+      return client.systemBalance.update({
+        where: { id: existing.id },
+        data: {
+          balance: {
+            increment: amount
+          }
         }
-      }
-    });
+      });
+    }
+    // No balance record exists yet — create one with the amount
+    return client.systemBalance.create({ data: { balance: amount } });
   },
 
   async setBalance(newBalance) {

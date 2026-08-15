@@ -140,7 +140,7 @@ const orderService = {
         }
 
         return newOrder;
-      });
+      }, { maxWait: 10000, timeout: 15000 });
 
       // 6. Telegram Botga Chek yuborish (Xato bersa ham buyurtma bekor bo'lmasligi kerak)
       try {
