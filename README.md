@@ -1,4 +1,4 @@
-# SweetFlow B2B Wholesale & Distribution System
+# Qandchi Bola Wholesale & Distribution System
 
 B2B Ulgurji Shirinliklar va Shokoladlar Distributsiyasi boshqaruv platformasi. Ushbu loyiha do'konlarga shirinliklarni ulgurji tarqatish, raqamli yuk xatlari (Nakladnaya) rasmiylashtirish, nasiya va qarz limitlarini boshqarish hamda fonda avtomatik ogohlantirish yuborish uchun mo'ljallangan.
 

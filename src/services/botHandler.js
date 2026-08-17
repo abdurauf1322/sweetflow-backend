@@ -72,7 +72,7 @@ const initBotHandler = () => {
 
       await pollingBot.sendMessage(
         chatId,
-        `Assalomu alaykum! 🍫\n<b>SweetFlow Distribyutsiya</b> tizimi botiga xush kelibsiz.\n\nHisobingizni ulash uchun pastdagi tugmani bosing:`,
+        `Assalomu alaykum! 🍫\n<b>Qandchi Bola Distribyutsiya</b> tizimi botiga xush kelibsiz.\n\nHisobingizni ulash uchun pastdagi tugmani bosing:`,
         {
           parse_mode: 'HTML',
           reply_markup: {

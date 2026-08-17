@@ -71,7 +71,7 @@ const sendDebtReminder = async (chatId, storeName, currentDebt = 0, remainingDay
   }
 
   const messageText =
-`🍫 SweetFlow Ulgurji B2B
+`🍫 Qandchi Bola Distribyutsiya Tizimi
 
 Hurmatli ${storeName}!
 Sizning joriy qarzdorligingiz: ${formattedDebt} so'm.
@@ -191,7 +191,7 @@ Do'kon: <b>${storeName}</b>
 <b>To'langan summa:</b> ${formattedAmount} so'm
 ${discount > 0 ? `🎁 <b>Berilgan chegirma:</b> ${formattedDiscount} so'm\n` : ''}💰 <b>Qolgan qarz:</b> ${formattedDebt} so'm
 
-<i>To'lov uchun rahmat! SweetFlow B2B</i> 🍫`;
+<i>To'lov uchun rahmat! Qandchi Bola Distribyutsiya</i> 🍫`;
 
   try {
     const result = await bot.sendMessage(numericChatId, messageText, { parse_mode: 'HTML' });
