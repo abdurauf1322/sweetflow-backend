@@ -112,6 +112,72 @@ const userController = {
     }
   },
 
+  // Barcha berilgan chegirmalar ro'yxati (POS va CRM orqali)
+  getAllDiscounts: catchAsync(async (req, res, next) => {
+    // POS (SupplyOrder) orqali berilgan chegirmalar
+    const posDiscounts = await prisma.supplyOrder.findMany({
+      where: {
+        discountAmount: { gt: 0 }
+      },
+      select: {
+        id: true,
+        discountAmount: true,
+        totalAmount: true, // "Jami" uchun. Biz subtotal ni ham ko'rsatishimiz mumkin.
+        subtotal: true,
+        createdAt: true,
+        store: { select: { name: true } },
+        createdBy: { select: { name: true, username: true, role: true } }
+      }
+    });
+
+    // CRM (PaymentHistory) orqali qarzdan kechilganlar
+    const crmDiscounts = await prisma.paymentHistory.findMany({
+      where: {
+        note: { contains: 'Chegirma' }
+      },
+      select: {
+        id: true,
+        amount: true,
+        createdAt: true,
+        store: { select: { name: true, currentDebt: true } }
+      }
+    });
+
+    // Birlashtirish va xaritalash
+    const formattedDiscounts = [
+      ...posDiscounts.map(d => ({
+        id: `pos-${d.id}`,
+        storeName: d.store?.name || "Noma'lum do'kon",
+        amount: Number(d.discountAmount),
+        giverName: d.createdBy?.name || "Noma'lum xodim",
+        giverUsername: d.createdBy?.username || "",
+        giverRole: d.createdBy?.role || "SELLER",
+        date: d.createdAt,
+        type: '🛒 Savdo (POS)',
+        totalInfo: `Jami (chegirmasiz): ${Number(d.subtotal).toLocaleString()} so'm`
+      })),
+      ...crmDiscounts.map(d => ({
+        id: `crm-${d.id}`,
+        storeName: d.store?.name || "Noma'lum do'kon",
+        amount: Number(d.amount),
+        giverName: "Tizim",
+        giverUsername: "admin",
+        giverRole: "BOSS",
+        date: d.createdAt,
+        type: '💳 Qarz yopish (CRM)',
+        totalInfo: `Joriy qarz: ${Number(d.store?.currentDebt || 0).toLocaleString()} so'm`
+      }))
+    ];
+
+    // Sana bo'yicha eng yangilarini tepaga chiqarish
+    formattedDiscounts.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    res.status(200).json({
+      success: true,
+      data: formattedDiscounts
+    });
+  }),
+
   // Xodimning kunlik savdo tarixi
   getSalesHistory: catchAsync(async (req, res, next) => {
     const { id } = req.params;

@@ -16,6 +16,9 @@ router.route('/')
   .get(userController.getAllUsers)
   .post(userController.createUser);
 
+// Barcha berilgan chegirmalarni olish
+router.get('/discounts/all', userController.getAllDiscounts);
+
 // Xodimning kunlik savdo tarixi
 router.get('/:id/sales-history', userController.getSalesHistory);
 
