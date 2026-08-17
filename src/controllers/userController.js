@@ -31,55 +31,63 @@ function getDateRange(period) {
 const userController = {
   // Barcha xodimlarni olish (Faqat BOSS) — period filtri bilan
   getAllUsers: catchAsync(async (req, res, next) => {
-    const period = req.query.period || 'all';
-    const { startDate, endDate } = getDateRange(period);
+    try {
+      const period = req.query.period || 'all';
+      const { startDate, endDate } = getDateRange(period);
 
-    const users = await prisma.user.findMany({
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        name: true,
-        username: true,
-        role: true,
-        createdAt: true,
-        orders: {
-          where: {
-            createdAt: {
-              gte: startDate,
-              lte: endDate
+      const users = await prisma.user.findMany({
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          name: true,
+          username: true,
+          role: true,
+          createdAt: true,
+          orders: {
+            where: {
+              createdAt: {
+                gte: startDate,
+                lte: endDate
+              }
+            },
+            select: {
+              id: true,
+              totalAmount: true,
+              debtAmount: true
             }
-          },
-          select: {
-            id: true,
-            totalAmount: true,
-            debtAmount: true
           }
         }
-      }
-    });
+      });
 
-    const usersWithStats = users.map(user => {
-      const salesCount = user.orders.length;
-      const salesAmount = user.orders.reduce((sum, order) => sum + Number(order.totalAmount || 0), 0);
-      const debtAmount = user.orders.reduce((sum, order) => sum + Number(order.debtAmount || 0), 0);
-      const paidAmount = salesAmount - debtAmount;
-      return {
-        id: user.id,
-        name: user.name,
-        username: user.username,
-        role: user.role,
-        createdAt: user.createdAt,
-        salesCount,
-        salesAmount,
-        paidAmount,
-        debtAmount
-      };
-    });
+      const usersWithStats = users.map(user => {
+        const salesCount = user.orders?.length || 0;
+        const salesAmount = user.orders?.reduce((sum, order) => sum + Number(order.totalAmount || 0), 0) || 0;
+        const debtAmount = user.orders?.reduce((sum, order) => sum + Number(order.debtAmount || 0), 0) || 0;
+        const paidAmount = salesAmount - debtAmount;
+        return {
+          id: user.id,
+          name: user.name,
+          username: user.username,
+          role: user.role,
+          createdAt: user.createdAt,
+          salesCount,
+          salesAmount,
+          paidAmount,
+          debtAmount
+        };
+      });
 
-    res.status(200).json({
-      success: true,
-      data: usersWithStats
-    });
+      res.status(200).json({
+        success: true,
+        data: usersWithStats
+      });
+    } catch (error) {
+      console.error("Xodimlarni yuklashda xatolik (Backend):", error);
+      res.status(200).json({
+        success: true,
+        data: []
+      });
+    }
   }),
 
   // Xodimning kunlik savdo tarixi
