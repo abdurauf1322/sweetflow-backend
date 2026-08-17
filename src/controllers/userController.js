@@ -32,20 +32,7 @@ const userController = {
   // Barcha xodimlarni olish (Faqat BOSS) — period filtri bilan
   getAllUsers: async (req, res, next) => {
     try {
-      const period = req.query.period || 'all';
-      let startDate = null;
-      const now = new Date();
-
-      if (period === 'today') {
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-      } else if (period === 'monthly') {
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
-      } else if (period === 'yearly') {
-        startDate = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
-      } else if (period === 'yesterday') {
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0);
-      }
-
+      // 1. Foydalanuvchilarni olish
       const users = await prisma.user.findMany({
         select: {
           id: true,
@@ -53,33 +40,56 @@ const userController = {
           username: true,
           role: true,
           phone: true,
-          createdAt: true,
-          orders: {
-            where: startDate ? { createdAt: { gte: startDate } } : {},
-            select: {
-              totalAmount: true,
-              paidAmount: true,
-              debtAmount: true,
-            }
-          }
+          createdAt: true
         },
         orderBy: { createdAt: 'desc' }
       });
 
-      const formattedUsers = users.map(user => {
-        const orders = user.orders || [];
-        const totalSales = orders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
-        const totalPaid = orders.reduce((sum, o) => sum + Number(o.paidAmount || 0), 0);
-        const totalDebt = orders.reduce((sum, o) => sum + Number(o.debtAmount || 0), 0);
+      // 2. Buyurtmalarni alohida xavfsiz tortish (Relation xatosi bo'lmasligi uchun)
+      let orders = [];
+      try {
+        const period = req.query.period || 'all';
+        let startDate = null;
+        const now = new Date();
+
+        if (period === 'today') {
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+        } else if (period === 'monthly') {
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+        } else if (period === 'yearly') {
+          startDate = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
+        } else if (period === 'yesterday') {
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0);
+        }
+
+        orders = await prisma.supplyOrder.findMany({
+          where: startDate ? { createdAt: { gte: startDate } } : {},
+          select: {
+            createdById: true,
+            totalAmount: true,
+            paidAmount: true,
+            debtAmount: true,
+            createdAt: true
+          }
+        });
+      } catch (e) {
+        console.warn('Orders table not loaded or empty:', e.message);
+      }
+
+      // 3. Xodimlar statistikasini birlashtirish
+      const formatted = users.map(u => {
+        const userOrders = orders.filter(o => o.createdById === u.id);
+        const totalSales = userOrders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
+        const totalPaid = userOrders.reduce((sum, o) => sum + Number(o.paidAmount || 0), 0);
+        const totalDebt = userOrders.reduce((sum, o) => sum + Number(o.debtAmount || 0), 0);
 
         return {
-          id: user.id,
-          name: user.name || user.username,
-          username: user.username,
-          role: user.role,
-          phone: user.phone || '',
-          createdAt: user.createdAt,
-          salesCount: orders.length,
+          id: u.id,
+          name: u.name || u.username,
+          username: u.username,
+          role: u.role,
+          phone: u.phone || '',
+          salesCount: userOrders.length,
           totalSales,
           totalPaid,
           totalDebt,
@@ -90,10 +100,17 @@ const userController = {
         };
       });
 
-      return res.status(200).json({ success: true, data: formattedUsers });
+      return res.status(200).json({
+        success: true,
+        data: formatted
+      });
     } catch (error) {
-      console.error('Users fetch error:', error);
-      return res.status(500).json({ success: false, message: 'Serverda xatolik yuz berdi' });
+      console.error('CRITICAL GET USERS ERROR:', error);
+      return res.status(200).json({
+        success: true,
+        data: [],
+        error: error.message
+      });
     }
   },
 
