@@ -39,7 +39,6 @@ const userController = {
           name: true,
           username: true,
           role: true,
-          phone: true,
           createdAt: true
         },
         orderBy: { createdAt: 'desc' }
@@ -67,7 +66,6 @@ const userController = {
           select: {
             createdById: true,
             totalAmount: true,
-            paidAmount: true,
             debtAmount: true,
             createdAt: true
           }
@@ -80,15 +78,15 @@ const userController = {
       const formatted = users.map(u => {
         const userOrders = orders.filter(o => o.createdById === u.id);
         const totalSales = userOrders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
-        const totalPaid = userOrders.reduce((sum, o) => sum + Number(o.paidAmount || 0), 0);
         const totalDebt = userOrders.reduce((sum, o) => sum + Number(o.debtAmount || 0), 0);
+        const totalPaid = totalSales - totalDebt; // Since paidAmount doesn't exist, calculate it
 
         return {
           id: u.id,
           name: u.name || u.username,
           username: u.username,
           role: u.role,
-          phone: u.phone || '',
+          createdAt: u.createdAt,
           salesCount: userOrders.length,
           totalSales,
           totalPaid,
