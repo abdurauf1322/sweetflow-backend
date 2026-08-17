@@ -139,25 +139,20 @@ const reportService = {
 
     let totalSales = 0;
     let totalPaid = 0;
-    let totalDebt = 0;
 
-    // Boshlang'ich qarzlar (initial debts) - manfiy to'lov tariqasida saqlangan
-    const initialDebtsList = await prisma.paymentHistory.findMany({
-      where: {
-        createdAt: {
-          gte: startDate,
-          lte: endDate,
-        },
-        amount: { lt: 0 }
+    const totalDebtAggregate = await prisma.store.aggregate({
+      _sum: {
+        currentDebt: true
       },
+      where: {
+        isDeleted: false
+      }
     });
-    const totalInitialDebt = initialDebtsList.reduce((acc, curr) => acc + Math.abs(Number(curr.amount)), 0);
-    totalDebt += totalInitialDebt;
+    const totalDebt = Number(totalDebtAggregate._sum.currentDebt || 0);
 
     let totalBoxesSold = 0;
     let totalPiecesSold = 0;
     let totalCOGS = 0;
-
 
     const productStats = {};
     const storeStats = {};
@@ -165,7 +160,6 @@ const reportService = {
 
     for (const order of orders) {
       totalSales += Number(order.totalAmount);
-      totalDebt += Number(order.debtAmount);
       totalPaid += (Number(order.totalAmount) - Number(order.debtAmount));
 
       // Calculate store stats
