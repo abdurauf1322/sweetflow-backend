@@ -5,10 +5,12 @@ const orderRepository = require('../repositories/orderRepository');
 const AppError = require('../utils/AppError');
 
 const orderService = {
-  async createOrder(orderInput) {
+  async createOrder(orderInput, userId = null) {
     try {
-      const { storeId, items } = orderInput;
+      const { storeId, items, discountType, discountValue } = orderInput;
       const paidAmount = Number(orderInput.paidAmount || 0);
+      const discType = discountType || 'FIXED';
+      const discValue = Number(discountValue || 0);
 
       // 1. Fetch Store
       const store = await storeRepository.findById(storeId);
@@ -59,6 +61,19 @@ const orderService = {
         });
       }
 
+      const subtotal = orderTotalAmount;
+      let discountAmount = 0;
+      if (discType === 'PERCENT') {
+        discountAmount = subtotal * (discValue / 100);
+      } else {
+        discountAmount = discValue;
+      }
+      
+      if (discountAmount > subtotal) {
+        discountAmount = subtotal;
+      }
+      
+      orderTotalAmount = Math.max(0, subtotal - discountAmount);
       const debtAmount = Math.max(0, orderTotalAmount - paidAmount);
 
       // 3. Verify Credit Limit
@@ -91,10 +106,15 @@ const orderService = {
         const newOrder = await tx.supplyOrder.create({
           data: {
             storeId,
+            subtotal,
+            discountType: discType,
+            discountValue: discValue,
+            discountAmount,
             totalAmount: orderTotalAmount,
             debtAmount,
             dueDate,
             status,
+            createdById: userId,
             items: {
               create: processedItems.map(item => ({
                 productId: item.productId,

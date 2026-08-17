@@ -3,32 +3,84 @@ const AppError = require('../utils/AppError');
 
 const reportService = {
   async getSalesReport(period) {
-    const now = new Date();
-    let startDate = new Date();
-    let endDate = new Date();
+    const getTashkentDate = () => {
+      return new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Tashkent"}));
+    };
+
+    let startDate = getTashkentDate();
+    let endDate = getTashkentDate();
+
+    // Create a precise UTC bound based on Tashkent calendar dates
+    const setTashkentRange = (startDt, endDt) => {
+      const y1 = startDt.getFullYear();
+      const m1 = startDt.getMonth();
+      const d1 = startDt.getDate();
+      
+      const y2 = endDt.getFullYear();
+      const m2 = endDt.getMonth();
+      const d2 = endDt.getDate();
+
+      return {
+        start: new Date(Date.UTC(y1, m1, d1, -5, 0, 0, 0)),
+        end: new Date(Date.UTC(y2, m2, d2, 18, 59, 59, 999))
+      };
+    };
+
+    let finalStart, finalEnd;
 
     if (period === 'today') {
-      startDate.setHours(0, 0, 0, 0);
-      endDate.setHours(23, 59, 59, 999);
+      const res = setTashkentRange(startDate, endDate);
+      finalStart = res.start;
+      finalEnd = res.end;
     } else if (period === 'yesterday') {
       startDate.setDate(startDate.getDate() - 1);
-      startDate.setHours(0, 0, 0, 0);
       endDate.setDate(endDate.getDate() - 1);
-      endDate.setHours(23, 59, 59, 999);
+      const res = setTashkentRange(startDate, endDate);
+      finalStart = res.start;
+      finalEnd = res.end;
     } else if (period === 'weekly') {
       startDate.setDate(startDate.getDate() - 7);
-      startDate.setHours(0, 0, 0, 0);
-      endDate.setHours(23, 59, 59, 999);
+      const res = setTashkentRange(startDate, endDate);
+      finalStart = res.start;
+      finalEnd = res.end;
     } else if (period === 'monthly') {
-      startDate.setDate(startDate.getDate() - 30);
-      startDate.setHours(0, 0, 0, 0);
-      endDate.setHours(23, 59, 59, 999);
+      startDate.setDate(1);
+      endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
+      const res = setTashkentRange(startDate, endDate);
+      finalStart = res.start;
+      finalEnd = res.end;
+    } else if (period === 'yearly') {
+      startDate.setMonth(0, 1);
+      endDate.setMonth(11, 31);
+      const res = setTashkentRange(startDate, endDate);
+      finalStart = res.start;
+      finalEnd = res.end;
+    } else if (period === 'all') {
+      finalStart = new Date('2020-01-01T00:00:00.000Z');
+      const res = setTashkentRange(endDate, endDate);
+      finalEnd = res.end;
+    } else if (period && period.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      startDate = new Date(period);
+      const res = setTashkentRange(startDate, startDate);
+      finalStart = res.start;
+      finalEnd = res.end;
+    } else if (period && period.match(/^\d{4}-\d{2}$/)) {
+      const [year, month] = period.split('-');
+      startDate = new Date(year, month - 1, 1);
+      endDate = new Date(year, month, 0);
+      const res = setTashkentRange(startDate, endDate);
+      finalStart = res.start;
+      finalEnd = res.end;
     } else {
-      // Default: monthly
-      startDate.setDate(startDate.getDate() - 30);
-      startDate.setHours(0, 0, 0, 0);
-      endDate.setHours(23, 59, 59, 999);
+      startDate.setDate(1);
+      endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
+      const res = setTashkentRange(startDate, endDate);
+      finalStart = res.start;
+      finalEnd = res.end;
     }
+
+    startDate = finalStart;
+    endDate = finalEnd;
 
     const orders = await prisma.supplyOrder.findMany({
       where: {
@@ -36,6 +88,9 @@ const reportService = {
           gte: startDate,
           lte: endDate,
         },
+        status: {
+          not: 'CANCELLED'
+        }
       },
       include: {
         items: {
@@ -44,6 +99,9 @@ const reportService = {
           },
         },
         store: true,
+        createdBy: {
+          select: { id: true, name: true, username: true, role: true }
+        }
       },
       orderBy: {
         createdAt: 'desc',
@@ -82,6 +140,20 @@ const reportService = {
     let totalSales = 0;
     let totalPaid = 0;
     let totalDebt = 0;
+
+    // Boshlang'ich qarzlar (initial debts) - manfiy to'lov tariqasida saqlangan
+    const initialDebtsList = await prisma.paymentHistory.findMany({
+      where: {
+        createdAt: {
+          gte: startDate,
+          lte: endDate,
+        },
+        amount: { lt: 0 }
+      },
+    });
+    const totalInitialDebt = initialDebtsList.reduce((acc, curr) => acc + Math.abs(Number(curr.amount)), 0);
+    totalDebt += totalInitialDebt;
+
     let totalBoxesSold = 0;
     let totalPiecesSold = 0;
     let totalCOGS = 0;
@@ -89,6 +161,7 @@ const reportService = {
 
     const productStats = {};
     const storeStats = {};
+    const sellerStats = {};
 
     for (const order of orders) {
       totalSales += Number(order.totalAmount);
@@ -113,6 +186,21 @@ const reportService = {
       }
       storeStats[storeId].totalSpend += Number(order.totalAmount);
       storeStats[storeId].ordersCount += 1;
+
+      // Calculate seller stats
+      const sellerId = order.createdById || 'unknown';
+      const sellerName = order.createdBy?.name || order.createdBy?.username || 'Admin';
+      
+      if (!sellerStats[sellerId]) {
+        sellerStats[sellerId] = {
+          id: sellerId,
+          name: sellerName,
+          totalSales: 0,
+          ordersCount: 0
+        };
+      }
+      sellerStats[sellerId].totalSales += Number(order.totalAmount);
+      sellerStats[sellerId].ordersCount += 1;
 
       for (const item of order.items) {
         const productId = item.productId;
@@ -168,15 +256,19 @@ const reportService = {
       .sort((a, b) => b.totalSpend - a.totalSpend)
       .slice(0, 5);
 
+    const topSellers = Object.values(sellerStats)
+      .sort((a, b) => b.totalSales - a.totalSales);
+
     const balanceService = require('./balanceService');
     const balanceRecord = await balanceService.getBalance();
     const systemBalance = Number(balanceRecord.balance);
 
     const totalExpenses = purchaseHistoryList.reduce((acc, curr) => acc + Number(curr.totalCost), 0);
-    const netProfit = totalPaid - totalCOGS;
-    const profitPercentage = totalPaid > 0 ? (netProfit / totalPaid) * 100 : 0;
-
     const totalOtherExpenses = expensesList.reduce((acc, curr) => acc + Number(curr.amount), 0);
+    
+    const netProfit = totalSales - totalCOGS - totalOtherExpenses;
+    const profitPercentage = totalSales > 0 ? (netProfit / totalSales) * 100 : 0;
+
 
     const productProfitList = Object.values(productStats).sort((a, b) => b.netProfit - a.netProfit);
     const soldProductsList = Object.values(productStats).sort((a, b) => (b.piecesSold + b.boxesSold) - (a.piecesSold + a.boxesSold));
@@ -203,6 +295,7 @@ const reportService = {
       debtStores,
       productProfitList,
       soldProductsList,
+      topSellers,
     };
 
   },

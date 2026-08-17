@@ -44,7 +44,10 @@ const checkRole = (roles) => {
     if (!req.user) {
       return next(new AppError('Foydalanuvchi aniqlanmadi. Avtorizatsiyadan o\'ting.', 401));
     }
-    if (!roles.includes(req.user.role)) {
+    const allowedRoles = roles.map(r => r.toUpperCase());
+    const userRole = req.user.role ? req.user.role.toUpperCase() : '';
+    
+    if (!allowedRoles.includes(userRole)) {
       return next(
         new AppError('Sizda ushbu amalni bajarish uchun ruxsat yo\'q.', 403)
       );

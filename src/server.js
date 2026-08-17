@@ -11,7 +11,7 @@ process.on('uncaughtException', (err) => {
 const app = require('./app');
 const prisma = require('./utils/prisma');
 const { initCronJobs } = require('./jobs/cronJobs');
-const { initBotHandler } = require('./services/botHandler');
+const { initBotHandler, stopBotHandler } = require('./services/botHandler');
 
 const port = process.env.PORT || 5000;
 
@@ -28,7 +28,8 @@ const server = app.listen(port, () => {
 process.on('unhandledRejection', (err) => {
   console.error('UNHANDLED REJECTION! 💥 Shutting down gracefully...');
   console.error(err.name, err.message, err.stack);
-  server.close(() => {
+  server.close(async () => {
+    await stopBotHandler();
     process.exit(1);
   });
 });
@@ -36,6 +37,8 @@ process.on('unhandledRejection', (err) => {
 // Graceful Shutdown on termination signals
 const gracefulShutdown = async (signal) => {
   console.log(`Received ${signal}. Shutting down server and database connections...`);
+  
+  await stopBotHandler();
   
   server.close(async () => {
     try {
@@ -57,3 +60,4 @@ const gracefulShutdown = async (signal) => {
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGUSR2', () => gracefulShutdown('SIGUSR2'));

@@ -45,6 +45,25 @@ router.get('/', catchAsync(async (req, res, next) => {
         gte: startDate,
         lte: endDate,
       };
+    } else if (period.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      startDate = new Date(period);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(period);
+      endDate.setHours(23, 59, 59, 999);
+      where.createdAt = {
+        gte: startDate,
+        lte: endDate,
+      };
+    } else if (period.match(/^\d{4}-\d{2}$/)) {
+      const [year, month] = period.split('-');
+      startDate = new Date(year, month - 1, 1);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(year, month, 0);
+      endDate.setHours(23, 59, 59, 999);
+      where.createdAt = {
+        gte: startDate,
+        lte: endDate,
+      };
     }
   }
 

@@ -40,5 +40,13 @@
   },
   "prisma": {
     "seed": "node prisma/seed.js"
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "frontend/*",
+      "uploads/*",
+      "node_modules/*",
+      "prisma/*.db"
+    ]
   }
 }

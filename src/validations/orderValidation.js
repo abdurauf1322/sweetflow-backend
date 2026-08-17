@@ -17,6 +17,8 @@ const createOrderSchema = z.object({
     required_error: 'Store ID is required',
   }).uuid('Invalid store ID format (must be UUID)'),
   paidAmount: z.number().nonnegative('Paid amount cannot be negative').default(0),
+  discountType: z.enum(['FIXED', 'PERCENT']).optional().default('FIXED'),
+  discountValue: z.number().nonnegative('Discount value cannot be negative').optional().default(0),
   items: z.array(orderItemSchema).min(1, 'Order must contain at least one item'),
 });
 

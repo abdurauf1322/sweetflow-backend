@@ -9,12 +9,16 @@ if (typeof TelegramBot !== 'function' && TelegramBot.default) {
 // Yangi va tasdiqlangan Token
 let TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 if (!TOKEN || TOKEN === 'your_bot_token') {
-  TOKEN = "8834308999:AAFdp0kt8fGq0RnPulGQ29oiJJRYfaypwkM";
+  TOKEN = "8971949755:AAHNjskCPfazqQeU-BccciQF7ckehl_dWLg";
 }
 
-const bot = new TelegramBot(TOKEN, { polling: false });
+// Singleton Pattern: Ensure bot is only instantiated once
+if (!global.__telegramBotInstance) {
+  global.__telegramBotInstance = new TelegramBot(TOKEN, { polling: false });
+}
+const bot = global.__telegramBotInstance;
 
-console.log("✅ Telegram Bot xizmati tayyor va faol!");
+console.log("✅ Telegram Bot xizmati tayyor va faol! (Singleton)");
 
 /**
  * Tizim ogohlantirishlarini yuborish (cronJobs uchun)
@@ -97,6 +101,9 @@ const sendOrderInvoice = async (chatId, order, store) => {
   const numericChatId = Number(String(chatId).trim());
   if (isNaN(numericChatId)) return;
 
+  const formattedSubtotal = Number(order.subtotal || order.totalAmount || 0).toLocaleString('uz-UZ');
+  const discountAmount = Number(order.discountAmount || 0);
+  const formattedDiscount = discountAmount.toLocaleString('uz-UZ');
   const formattedTotal = Number(order.totalAmount || 0).toLocaleString('uz-UZ');
   const paidAmountVal = Number(order.paidAmount) || (Number(order.totalAmount || 0) - Number(order.debtAmount || 0));
   const formattedPaid = Number(paidAmountVal || 0).toLocaleString('uz-UZ');
@@ -104,28 +111,55 @@ const sendOrderInvoice = async (chatId, order, store) => {
   const currentTotalDebt = Number(store.currentDebt || 0) + Number(order.debtAmount || 0);
   const formattedCurrentDebt = currentTotalDebt.toLocaleString('uz-UZ');
 
+  let totalBoxes = 0;
+  let totalItems = 0;
+
   let itemsText = '';
   if (order.items && order.items.length > 0) {
     itemsText = order.items.map((item, index) => {
       const price = Number(item.price || 0).toLocaleString('uz-UZ');
       const total = Number(item.totalPrice || 0).toLocaleString('uz-UZ');
-      return `${index + 1}. ${item.product?.name || item.productName || 'Mahsulot'} - ${item.quantity} ${item.unitType === 'BOX' ? 'quti' : 'dona'} x ${price} s = ${total} s`;
+      const unitLabel = item.unitType === 'BOX' ? 'blok' : 'dona';
+      const quantityInBox = item.product?.quantityInBox || 1;
+      
+      let itemLine = `${index + 1}. ${item.product?.name || item.productName || 'Mahsulot'}\n   └ ${item.quantity} ${unitLabel}`;
+      if (item.unitType === 'BOX' && quantityInBox > 1) {
+         itemLine += ` (${item.quantity * quantityInBox} dona)`;
+         totalBoxes += item.quantity;
+         totalItems += item.quantity * quantityInBox;
+      } else {
+         totalItems += item.quantity;
+      }
+      itemLine += ` × ${price} = ${total} so'm`;
+      return itemLine;
     }).join('\n');
   }
 
+  const storeAddress = store.address || "Ko'rsatilmagan";
+  const agentName = order.createdBy?.name || 'Admin';
+  const agentPhone = order.createdBy?.phone || '';
+  const orderDate = new Date(order.createdAt).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
   const messageText = 
-`🧾 <b>YANGI YUK XATI</b>
-Do'kon: <b>${store.name}</b>
+`📋 <b>YANGI YUK XATI (NAKLADNOY)</b>
+━━━━━━━━━━━━━━━━━━━━
+🏢 <b>Mijoz:</b> ${store.name} (${store.ownerName})
+📍 <b>Manzil:</b> ${storeAddress}
+👤 <b>Agent:</b> ${agentName} ${agentPhone ? `(${agentPhone})` : ''}
+📞 <b>Tel:</b> ${store.phone}
+🧾 <b>Zakaz №:</b> ${order.id}
+📅 <b>Sana:</b> ${orderDate}
 
+📦 <b>BUYURTMA TARKIBI:</b>
 ${itemsText}
+━━━━━━━━━━━━━━━━━━━━
+📊 <b>Jami hajm:</b> ${totalBoxes} blok | ${totalItems} dona
+💵 <b>Umumiy summa:</b> ${formattedSubtotal} so'm
+${discountAmount > 0 ? `🎁 <b>Chegirma:</b> ${formattedDiscount} so'm\n` : ''}💰 <b>To'lanishi kerak:</b> ${formattedTotal} so'm
 
----------------------------------
-<b>Umumiy summa:</b> ${formattedTotal} so'm
-<b>To'landi:</b> ${formattedPaid} so'm
-<b>Qarz (bu xarid):</b> ${formattedDebt} so'm
-<b>Umumiy qarz:</b> ${formattedCurrentDebt} so'm
-
-<i>Xaridingiz uchun rahmat! SweetFlow B2B</i> 🍫`;
+💳 <b>TO'LOV:</b>
+🟢 <b>Naqd:</b> ${formattedPaid} so'm
+🔴 <b>Nasiya (Qarz):</b> ${formattedDebt} so'm`;
 
   try {
     const result = await bot.sendMessage(numericChatId, messageText, { parse_mode: 'HTML' });
@@ -137,4 +171,35 @@ ${itemsText}
   }
 };
 
-module.exports = { sendDebtReminder, sendAlert, sendOrderInvoice, bot };
+/**
+ * Do'konga to'lov qabul qilinganligi haqida xabar yuborish
+ */
+const sendPaymentReceipt = async (chatId, storeName, amount, discount, remainingDebt) => {
+  if (!chatId) return;
+
+  const numericChatId = Number(String(chatId).trim());
+  if (isNaN(numericChatId)) return;
+
+  const formattedAmount = Number(amount || 0).toLocaleString('uz-UZ');
+  const formattedDiscount = Number(discount || 0).toLocaleString('uz-UZ');
+  const formattedDebt = Number(remainingDebt || 0).toLocaleString('uz-UZ');
+
+  const messageText = 
+`✅ <b>TO'LOV QABUL QILINDI</b>
+Do'kon: <b>${storeName}</b>
+
+<b>To'langan summa:</b> ${formattedAmount} so'm
+${discount > 0 ? `🎁 <b>Berilgan chegirma:</b> ${formattedDiscount} so'm\n` : ''}💰 <b>Qolgan qarz:</b> ${formattedDebt} so'm
+
+<i>To'lov uchun rahmat! SweetFlow B2B</i> 🍫`;
+
+  try {
+    const result = await bot.sendMessage(numericChatId, messageText, { parse_mode: 'HTML' });
+    console.log(`✅ To'lov cheki Telegramga yuborildi. ChatID: ${numericChatId}`);
+    return result;
+  } catch (error) {
+    console.error('❌ TELEGRAM PAYMENT RECEIPT ERROR:', error.response?.body || error.message);
+  }
+};
+
+module.exports = { sendDebtReminder, sendAlert, sendOrderInvoice, sendPaymentReceipt, bot };

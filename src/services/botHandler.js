@@ -21,7 +21,7 @@ const prisma = require('../utils/prisma');
 
 let TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 if (!TOKEN || TOKEN === 'your_bot_token') {
-  TOKEN = '8834308999:AAFdp0kt8fGq0RnPulGQ29oiJJRYfaypwkM';
+  TOKEN = '8971949755:AAHNjskCPfazqQeU-BccciQF7ckehl_dWLg';
 }
 
 let pollingBot = null;
@@ -43,10 +43,10 @@ const normalizePhone = (raw = '') => {
  * Called once from server.js at startup.
  */
 const initBotHandler = () => {
-  if (pollingBot) return; // already running
+  if (global.__telegramPollingBot) return; // already running
 
   try {
-    pollingBot = new TelegramBot(TOKEN, {
+    global.__telegramPollingBot = new TelegramBot(TOKEN, {
       polling: {
         interval: 2000,      // poll every 2 seconds
         autoStart: true,
@@ -58,6 +58,8 @@ const initBotHandler = () => {
         }
       }
     });
+    pollingBot = global.__telegramPollingBot;
+    // Duplicated lines removed
 
     console.log('🤖 [Bot Handler] Telegram bot polling ishga tushdi.');
 
@@ -171,4 +173,15 @@ const initBotHandler = () => {
   }
 };
 
-module.exports = { initBotHandler };
+const stopBotHandler = async () => {
+  if (global.__telegramPollingBot) {
+    try {
+      await global.__telegramPollingBot.stopPolling();
+      console.log('🤖 [Bot Handler] Telegram bot polling to\'xtatildi.');
+    } catch (err) {
+      console.error('Error stopping bot:', err);
+    }
+  }
+};
+
+module.exports = { initBotHandler, stopBotHandler };

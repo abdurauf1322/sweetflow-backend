@@ -79,7 +79,7 @@ const storeController = {
 
   updateStore: catchAsync(async (req, res, next) => {
     const { id } = req.params;
-    const { name, ownerName, phone, telegramChatId, creditLimit, paymentDays } = req.body;
+    const { name, ownerName, phone, telegramChatId, creditLimit, paymentDays, discountPercent, currentDebt } = req.body;
 
     const prisma = require('../utils/prisma');
 
@@ -98,16 +98,26 @@ const storeController = {
     }
 
     // 3. Save changes
+    const updateData = {
+      name,
+      ownerName,
+      phone,
+      telegramChatId: telegramChatId ? String(telegramChatId).trim() : null,
+      creditLimit: Number(creditLimit),
+      paymentDays: Number(paymentDays),
+    };
+
+    if (discountPercent !== undefined) {
+      updateData.discountPercent = Number(discountPercent);
+    }
+    
+    if (currentDebt !== undefined) {
+      updateData.currentDebt = Number(currentDebt);
+    }
+
     const updatedStore = await prisma.store.update({
       where: { id },
-      data: {
-        name,
-        ownerName,
-        phone,
-        telegramChatId: telegramChatId ? String(telegramChatId).trim() : null,
-        creditLimit: Number(creditLimit),
-        paymentDays: Number(paymentDays),
-      },
+      data: updateData,
     });
 
     // 4. Fetch latest unpaid order dates so frontend can compute remaining days correctly

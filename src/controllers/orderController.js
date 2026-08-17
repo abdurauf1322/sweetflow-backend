@@ -8,7 +8,8 @@ const orderController = {
     const validatedData = createOrderSchema.parse(req.body);
 
     // 2. Call service (Handles transactional stock deductions & debt logic)
-    const order = await orderService.createOrder(validatedData);
+    const userId = req.user ? req.user.id : null;
+    const order = await orderService.createOrder(validatedData, userId);
 
     // 3. Send response
     res.status(201).json({

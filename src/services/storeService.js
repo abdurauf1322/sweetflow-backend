@@ -3,11 +3,34 @@ const AppError = require('../utils/AppError');
 
 const storeService = {
   async createStore(storeData) {
-    const existingStore = await storeRepository.findByPhone(storeData.phone);
+    const { initialDebt, ...data } = storeData;
+    const existingStore = await storeRepository.findByPhone(data.phone);
     if (existingStore) {
-      throw new AppError(`Store with phone number '${storeData.phone}' already exists`, 400);
+      throw new AppError(`Store with phone number '${data.phone}' already exists`, 400);
     }
-    return storeRepository.create(storeData);
+    
+    const prisma = require('../utils/prisma');
+    return prisma.$transaction(async (tx) => {
+      const store = await tx.store.create({
+        data: {
+          ...data,
+          currentDebt: initialDebt || 0,
+        }
+      });
+      
+      if (initialDebt && initialDebt > 0) {
+        await tx.paymentHistory.create({
+          data: {
+            storeId: store.id,
+            amount: -initialDebt,
+            paymentMethod: 'CASH',
+            note: "Boshlang'ich qoldiq qarz"
+          }
+        });
+      }
+      
+      return store;
+    });
   },
 
   async getStoreById(id) {
@@ -161,6 +184,9 @@ const storeService = {
             product: true,
           },
         },
+        createdBy: {
+          select: { id: true, name: true, username: true, role: true }
+        }
       },
       orderBy: {
         createdAt: 'desc',
@@ -200,16 +226,17 @@ const storeService = {
       throw new AppError(`Store with ID ${storeId} not found`, 404);
     }
 
-    const { amount, paymentMethod, note } = paymentData;
+    const { amount, paymentMethod, note, discount = 0 } = paymentData;
     const currentDebt = Number(store.currentDebt);
+    const totalDeduction = amount + discount;
 
-    if (amount > currentDebt) {
-      throw new AppError(`To'lov summasi (${amount.toLocaleString()} so'm) joriy qarzdan (${currentDebt.toLocaleString()} so'm) ko'p bo'lishi mumkin emas`, 400);
+    if (totalDeduction > currentDebt) {
+      throw new AppError(`To'lov va chegirma summasi (${totalDeduction.toLocaleString()} so'm) joriy qarzdan (${currentDebt.toLocaleString()} so'm) ko'p bo'lishi mumkin emas`, 400);
     }
 
     // Perform transaction to save payment, decrease debt, and settle orders FIFO
-    return prisma.$transaction(async (tx) => {
-      // 1. Create Payment record
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Create Payment record for actual amount
       const payment = await tx.paymentHistory.create({
         data: {
           storeId,
@@ -219,18 +246,30 @@ const storeService = {
         },
       });
 
+      // 1b. Create Payment record for discount if > 0
+      if (discount > 0) {
+        await tx.paymentHistory.create({
+          data: {
+            storeId,
+            amount: discount,
+            paymentMethod: 'DISCOUNT',
+            note: '🎁 Chegirma / Qarzdan kechish',
+          },
+        });
+      }
+
       // 2. Decrement store debt
       await tx.store.update({
         where: { id: storeId },
         data: {
           currentDebt: {
-            decrement: amount,
+            decrement: totalDeduction,
           },
         },
       });
 
       // 3. FIFO order debt settlement
-      let remainingPayment = amount;
+      let remainingPayment = totalDeduction;
       const unpaidOrders = await tx.supplyOrder.findMany({
         where: {
           storeId,
@@ -274,6 +313,18 @@ const storeService = {
 
       return payment;
     });
+
+    // 5. Send Telegram Notification
+    try {
+      if (store.telegramChatId) {
+        const telegramService = require('./telegramService');
+        await telegramService.sendPaymentReceipt(store.telegramChatId, store.name, amount, discount, currentDebt - totalDeduction);
+      }
+    } catch (error) {
+      console.error('Failed to send telegram payment receipt:', error.message);
+    }
+
+    return result;
   },
 
   async getStorePayments(storeId) {

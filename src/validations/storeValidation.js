@@ -15,8 +15,9 @@ const createStoreSchema = z.object({
   }).nonnegative('Credit limit cannot be negative'),
   paymentDays: z.number({
     required_error: 'Payment days is required',
-  }).int('Payment days must be an integer').positive('Payment days must be positive'),
+  }).int('Payment days must be an integer').nonnegative('Payment days must be positive'),
   telegramChatId: z.string().optional(),
+  initialDebt: z.number().nonnegative('Initial debt cannot be negative').optional().default(0),
 });
 
 module.exports = {
