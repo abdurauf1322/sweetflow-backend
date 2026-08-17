@@ -30,65 +30,72 @@ function getDateRange(period) {
 
 const userController = {
   // Barcha xodimlarni olish (Faqat BOSS) — period filtri bilan
-  getAllUsers: catchAsync(async (req, res, next) => {
+  getAllUsers: async (req, res, next) => {
     try {
       const period = req.query.period || 'all';
-      const { startDate, endDate } = getDateRange(period);
+      let startDate = null;
+      const now = new Date();
+
+      if (period === 'today') {
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+      } else if (period === 'monthly') {
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+      } else if (period === 'yearly') {
+        startDate = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
+      } else if (period === 'yesterday') {
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0);
+      }
 
       const users = await prisma.user.findMany({
-        orderBy: { createdAt: 'desc' },
         select: {
           id: true,
           name: true,
           username: true,
           role: true,
+          phone: true,
           createdAt: true,
           orders: {
-            where: {
-              createdAt: {
-                gte: startDate,
-                lte: endDate
-              }
-            },
+            where: startDate ? { createdAt: { gte: startDate } } : {},
             select: {
-              id: true,
               totalAmount: true,
-              debtAmount: true
+              paidAmount: true,
+              debtAmount: true,
             }
           }
-        }
+        },
+        orderBy: { createdAt: 'desc' }
       });
 
-      const usersWithStats = users.map(user => {
-        const salesCount = user.orders?.length || 0;
-        const salesAmount = user.orders?.reduce((sum, order) => sum + Number(order.totalAmount || 0), 0) || 0;
-        const debtAmount = user.orders?.reduce((sum, order) => sum + Number(order.debtAmount || 0), 0) || 0;
-        const paidAmount = salesAmount - debtAmount;
+      const formattedUsers = users.map(user => {
+        const orders = user.orders || [];
+        const totalSales = orders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
+        const totalPaid = orders.reduce((sum, o) => sum + Number(o.paidAmount || 0), 0);
+        const totalDebt = orders.reduce((sum, o) => sum + Number(o.debtAmount || 0), 0);
+
         return {
           id: user.id,
-          name: user.name,
+          name: user.name || user.username,
           username: user.username,
           role: user.role,
+          phone: user.phone || '',
           createdAt: user.createdAt,
-          salesCount,
-          salesAmount,
-          paidAmount,
-          debtAmount
+          salesCount: orders.length,
+          totalSales,
+          totalPaid,
+          totalDebt,
+          // Compatibility for existing frontend code
+          salesAmount: totalSales,
+          paidAmount: totalPaid,
+          debtAmount: totalDebt
         };
       });
 
-      res.status(200).json({
-        success: true,
-        data: usersWithStats
-      });
+      return res.status(200).json({ success: true, data: formattedUsers });
     } catch (error) {
-      console.error("Xodimlarni yuklashda xatolik (Backend):", error);
-      res.status(200).json({
-        success: true,
-        data: []
-      });
+      console.error('Users fetch error:', error);
+      return res.status(500).json({ success: false, message: 'Serverda xatolik yuz berdi' });
     }
-  }),
+  },
 
   // Xodimning kunlik savdo tarixi
   getSalesHistory: catchAsync(async (req, res, next) => {

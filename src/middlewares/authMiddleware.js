@@ -42,15 +42,13 @@ const protect = catchAsync(async (req, res, next) => {
 const checkRole = (roles) => {
   return (req, res, next) => {
     if (!req.user) {
-      return next(new AppError('Foydalanuvchi aniqlanmadi. Avtorizatsiyadan o\'ting.', 401));
+      return res.status(401).json({ success: false, message: 'Foydalanuvchi aniqlanmadi. Avtorizatsiyadan o\'ting.' });
     }
     const allowedRoles = roles.map(r => r.toUpperCase());
-    const userRole = req.user.role ? req.user.role.toUpperCase() : '';
+    const userRole = (req.user?.role || '').toUpperCase();
     
     if (!allowedRoles.includes(userRole)) {
-      return next(
-        new AppError('Sizda ushbu amalni bajarish uchun ruxsat yo\'q.', 403)
-      );
+      return res.status(403).json({ success: false, message: 'Sizda ushbu amalni bajarish uchun ruxsat yo\'q.' });
     }
     next();
   };
