@@ -1,7 +1,8 @@
 {
-  "name": "wholesale-distribution-system",
+  "name": "qandchi-bola",
+  "productName": "Qandchi Bola",
   "version": "1.0.0",
-  "description": "B2B Wholesale Sweet and Chocolate Distribution System Backend",
+  "description": "Qandchi Bola - Distribyutsiya va Kassa Tizimi",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",

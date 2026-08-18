@@ -146,6 +146,15 @@ const productController = {
     });
   }),
 
+  syncStock: catchAsync(async (req, res, next) => {
+    const result = await productService.syncExistingStock();
+    res.status(200).json({
+      status: 'success',
+      message: 'Mavjud zaxiralar muvaffaqiyatli sinxronlandi',
+      data: result,
+    });
+  }),
+
 };
 
 module.exports = productController;

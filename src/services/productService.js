@@ -242,6 +242,69 @@ const productService = {
       return updatedPurchase;
     }, { maxWait: 10000, timeout: 15000 });
   },
+
+  async syncExistingStock() {
+    return prisma.$transaction(async (tx) => {
+      // Find all active products
+      const products = await tx.product.findMany({
+        where: { isDeleted: false },
+        include: { purchaseHistory: true }
+      });
+
+      let totalSyncedCost = 0;
+      let syncedProductsCount = 0;
+
+      for (const product of products) {
+        // If it already has a purchase history, skip it
+        if (product.purchaseHistory && product.purchaseHistory.length > 0) {
+          continue;
+        }
+
+        const stockCount = Number(product.stockCount || 0);
+        if (stockCount <= 0) continue;
+
+        const qtyInBox = Number(product.quantityInBox || 1);
+        const boxes = Math.floor(stockCount / qtyInBox);
+        const pieces = stockCount % qtyInBox;
+
+        const boxCostPrice = Number(product.boxCostPrice || 0);
+        const pieceCostPrice = Number(product.costPrice || 0);
+        
+        const totalCost = (boxes * boxCostPrice) + (pieces * pieceCostPrice);
+
+        if (totalCost > 0) {
+          await tx.purchaseHistory.create({
+            data: {
+              productId: product.id,
+              addedBoxes: boxes,
+              addedPieces: pieces,
+              boxCostPrice: boxCostPrice,
+              pieceCostPrice: pieceCostPrice,
+              totalCost: totalCost,
+              paidAmount: totalCost, // Paid in cash
+              debtAmount: 0,
+              isPaid: true,
+              paymentType: 'CASH',
+              supplierName: 'System Sync (Existing Stock)'
+            }
+          });
+
+          totalSyncedCost += totalCost;
+          syncedProductsCount++;
+        }
+      }
+
+      if (totalSyncedCost > 0) {
+        const balanceService = require('./balanceService');
+        await balanceService.updateBalance(-totalSyncedCost, tx);
+      }
+
+      return {
+        syncedProductsCount,
+        totalSyncedCost
+      };
+    }, { maxWait: 30000, timeout: 60000 }); // give it a longer timeout in case of many products
+  },
 };
 
 module.exports = productService;

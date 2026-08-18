@@ -34,6 +34,7 @@ const upload = multer({
   }
 });
 
+router.post('/sync-stock', productController.syncStock);
 router.post('/', upload.single('image'), productController.createProduct);
 router.get('/', productController.getAllProducts);
 router.get('/low-stock', productController.getLowStockProducts);
