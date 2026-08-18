@@ -80,12 +80,16 @@ const productService = {
       throw new AppError(`Product with ID ${id} not found`, 404);
     }
 
-    // 1. Check if product has historical order items
+    // 1. Check if product has historical order items or purchase history
     const orderItemCount = await prisma.supplyOrderItem.count({
       where: { productId: id },
     });
 
-    if (orderItemCount > 0) {
+    const purchaseHistoryCount = await prisma.purchaseHistory.count({
+      where: { productId: id },
+    });
+
+    if (orderItemCount > 0 || purchaseHistoryCount > 0) {
       // Soft delete: flag and rename name to release unique index
       return prisma.product.update({
         where: { id },
