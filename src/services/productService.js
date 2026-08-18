@@ -50,7 +50,9 @@ const productService = {
             totalCost: totalCost,
             paidAmount: paidAmount,
             paymentType: paymentType,
-            supplierName: supplierName
+            supplierName: supplierName,
+            debtAmount: paymentType === 'DEBT' ? totalCost - paidAmount : 0,
+            isPaid: paymentType === 'DEBT' ? (totalCost - paidAmount <= 0) : true
           }
         });
       }
@@ -183,7 +185,9 @@ const productService = {
               totalCost: totalCost,
               paidAmount: paidAmount,
               paymentType: paymentType,
-              supplierName: supplierName
+              supplierName: supplierName,
+              debtAmount: paymentType === 'DEBT' ? totalCost - paidAmount : 0,
+              isPaid: paymentType === 'DEBT' ? (totalCost - paidAmount <= 0) : true
             }
           });
         }
@@ -206,12 +210,19 @@ const productService = {
       const newPaidAmount = Number(purchase.paidAmount) + amount;
       if (newPaidAmount > Number(purchase.totalCost)) throw new AppError('Kiritilgan summa qoldiq qarzdan ko\'p bo\'lishi mumkin emas', 400);
 
+      const newDebtAmount = Number(purchase.totalCost) - newPaidAmount;
+      const isPaid = newDebtAmount <= 0;
+
       const balanceService = require('./balanceService');
       await balanceService.updateBalance(-amount, tx);
 
       const updatedPurchase = await tx.purchaseHistory.update({
         where: { id: purchaseId },
-        data: { paidAmount: newPaidAmount }
+        data: { 
+          paidAmount: newPaidAmount,
+          debtAmount: newDebtAmount,
+          isPaid: isPaid
+        }
       });
 
       // Send Telegram bot alert

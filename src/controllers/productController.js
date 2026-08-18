@@ -1,6 +1,22 @@
 const productService = require('../services/productService');
 const { createProductSchema, updateProductSchema } = require('../validations/productValidation');
 const catchAsync = require('../utils/catchAsync');
+const prisma = require('../utils/prisma');
+const fs = require('fs');
+const path = require('path');
+
+const removeOldImage = (imageUrl) => {
+  if (!imageUrl) return;
+  try {
+    const filename = imageUrl.split('/').pop();
+    const filePath = path.join(process.cwd(), 'uploads', filename);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  } catch (err) {
+    console.warn('Eski rasmni diskdan ochirishda xatolik:', err.message);
+  }
+};
 
 const productController = {
   createProduct: catchAsync(async (req, res, next) => {
@@ -67,7 +83,11 @@ const productController = {
 
   deleteProduct: catchAsync(async (req, res, next) => {
     const { id } = req.params;
+    const oldProduct = await prisma.product.findUnique({ where: { id } });
     await productService.deleteProduct(id);
+    if (oldProduct && oldProduct.imageUrl) {
+      removeOldImage(oldProduct.imageUrl);
+    }
 
     res.status(200).json({
       status: 'success',
@@ -82,8 +102,18 @@ const productController = {
 
     const validatedData = updateProductSchema.parse(req.body);
 
+    const oldProduct = await prisma.product.findUnique({ where: { id } });
+
     if (req.file) {
       validatedData.imageUrl = req.file.filename;
+      if (oldProduct && oldProduct.imageUrl) {
+        removeOldImage(oldProduct.imageUrl);
+      }
+    } else if (req.body.removeImage === 'true' || req.body.removeImage === true) {
+      validatedData.imageUrl = null;
+      if (oldProduct && oldProduct.imageUrl) {
+        removeOldImage(oldProduct.imageUrl);
+      }
     }
 
     // Pass granular counts to service for correct balance deduction

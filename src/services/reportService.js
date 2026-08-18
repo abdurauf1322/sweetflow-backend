@@ -260,6 +260,13 @@ const reportService = {
     const totalExpenses = purchaseHistoryList.reduce((acc, curr) => acc + Number(curr.paidAmount || 0), 0);
     const totalOtherExpenses = expensesList.reduce((acc, curr) => acc + Number(curr.amount), 0);
     
+    const totalSupplierDebt = purchaseHistoryList.reduce((acc, curr) => {
+      if (curr.paymentType === 'DEBT' && !curr.isPaid) {
+        return acc + Number(curr.debtAmount || 0);
+      }
+      return acc;
+    }, 0);
+    
     const netProfit = totalSales - totalCOGS - totalOtherExpenses;
     const profitPercentage = totalSales > 0 ? (netProfit / totalSales) * 100 : 0;
 
@@ -278,6 +285,7 @@ const reportService = {
       totalPiecesSold,
       totalExpenses,
       totalOtherExpenses,
+      totalSupplierDebt,
       netProfit,
       profitPercentage,
       systemBalance,

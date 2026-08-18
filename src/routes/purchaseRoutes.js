@@ -66,6 +66,12 @@ router.get('/', catchAsync(async (req, res, next) => {
       };
     }
   }
+  
+  const { type } = req.query;
+  if (type === 'debt') {
+    where.paymentType = 'DEBT';
+    where.isPaid = false;
+  }
 
   const purchases = await prisma.purchaseHistory.findMany({
     where,
