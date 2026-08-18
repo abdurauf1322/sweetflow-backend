@@ -257,7 +257,7 @@ const reportService = {
     const balanceRecord = await balanceService.getBalance();
     const systemBalance = Number(balanceRecord.balance);
 
-    const totalExpenses = purchaseHistoryList.reduce((acc, curr) => acc + Number(curr.totalCost), 0);
+    const totalExpenses = purchaseHistoryList.reduce((acc, curr) => acc + Number(curr.paidAmount || 0), 0);
     const totalOtherExpenses = expensesList.reduce((acc, curr) => acc + Number(curr.amount), 0);
     
     const netProfit = totalSales - totalCOGS - totalOtherExpenses;

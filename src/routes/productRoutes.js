@@ -37,6 +37,7 @@ const upload = multer({
 router.post('/', upload.single('image'), productController.createProduct);
 router.get('/', productController.getAllProducts);
 router.get('/low-stock', productController.getLowStockProducts);
+router.post('/purchases/:id/pay', productController.payPurchaseDebt);
 router.delete('/:id', productController.deleteProduct);
 router.put('/:id', upload.single('image'), productController.updateProduct);
 

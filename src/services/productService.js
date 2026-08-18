@@ -31,8 +31,14 @@ const productService = {
       const totalCost  = (initBoxes * boxCost) + (initPieces * pieceCost);
 
       if (totalCost > 0) {
-        const balanceService = require('./balanceService');
-        await balanceService.updateBalance(-totalCost, tx);
+        const paymentType = productData._paymentType || 'CASH';
+        const supplierName = productData._supplierName || null;
+        const paidAmount = productData._paidAmount !== undefined ? Number(productData._paidAmount) : (paymentType === 'CASH' ? totalCost : 0);
+
+        if (paidAmount > 0) {
+          const balanceService = require('./balanceService');
+          await balanceService.updateBalance(-paidAmount, tx);
+        }
 
         await tx.purchaseHistory.create({
           data: {
@@ -41,7 +47,10 @@ const productService = {
             addedPieces: initPieces,
             boxCostPrice: boxCost,
             pieceCostPrice: pieceCost,
-            totalCost: totalCost
+            totalCost: totalCost,
+            paidAmount: paidAmount,
+            paymentType: paymentType,
+            supplierName: supplierName
           }
         });
       }
@@ -155,8 +164,14 @@ const productService = {
       if (addedBoxes > 0 || addedPieces > 0) {
         const totalCost = (addedBoxes * boxCost) + (addedPieces * pieceCost);
         if (totalCost > 0) {
-          const balanceService = require('./balanceService');
-          await balanceService.updateBalance(-totalCost, tx);
+          const paymentType = productData._paymentType || 'CASH';
+          const supplierName = productData._supplierName || null;
+          const paidAmount = productData._paidAmount !== undefined ? Number(productData._paidAmount) : (paymentType === 'CASH' ? totalCost : 0);
+
+          if (paidAmount > 0) {
+            const balanceService = require('./balanceService');
+            await balanceService.updateBalance(-paidAmount, tx);
+          }
 
           await tx.purchaseHistory.create({
             data: {
@@ -165,7 +180,10 @@ const productService = {
               addedPieces: addedPieces,
               boxCostPrice: boxCost,
               pieceCostPrice: pieceCost,
-              totalCost: totalCost
+              totalCost: totalCost,
+              paidAmount: paidAmount,
+              paymentType: paymentType,
+              supplierName: supplierName
             }
           });
         }
@@ -177,6 +195,41 @@ const productService = {
 
   async getLowStockProducts() {
     return productRepository.findLowStock();
+  },
+
+  async payPurchaseDebt(purchaseId, amount) {
+    return prisma.$transaction(async (tx) => {
+      const purchase = await tx.purchaseHistory.findUnique({ where: { id: purchaseId } });
+      if (!purchase) throw new AppError('Xarid topilmadi', 404);
+      if (purchase.paymentType !== 'DEBT') throw new AppError('Naqd xarid uchun qarz to\'lab bo\'lmaydi', 400);
+      
+      const newPaidAmount = Number(purchase.paidAmount) + amount;
+      if (newPaidAmount > Number(purchase.totalCost)) throw new AppError('Kiritilgan summa qoldiq qarzdan ko\'p bo\'lishi mumkin emas', 400);
+
+      const balanceService = require('./balanceService');
+      await balanceService.updateBalance(-amount, tx);
+
+      const updatedPurchase = await tx.purchaseHistory.update({
+        where: { id: purchaseId },
+        data: { paidAmount: newPaidAmount }
+      });
+
+      // Send Telegram bot alert
+      try {
+        const telegramService = require('./telegramService');
+        const formattedAmount = Number(amount).toLocaleString('uz-UZ');
+        const supplierName = purchase.supplierName || 'Noma\'lum';
+        const message = `💸 <b>TA'MINOTCHIGA QARZ TO'LANDI</b>\n\n` +
+          `👤 <b>Ta'minotchi:</b> ${supplierName}\n` +
+          `💰 <b>To'landi:</b> ${formattedAmount} so'm\n` +
+          `⚠️ <i>Kassa balansidan ayirildi.</i>`;
+        await telegramService.sendAlert(message);
+      } catch (err) {
+        console.error('Failed to send Telegram alert for purchase debt payment:', err.message);
+      }
+
+      return updatedPurchase;
+    }, { maxWait: 10000, timeout: 15000 });
   },
 };
 

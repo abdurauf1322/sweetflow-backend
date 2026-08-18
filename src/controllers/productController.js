@@ -23,6 +23,9 @@ const productController = {
     // Restore meta fields (not in zod schema so they pass through if we set them manually)
     validatedData._addedBoxes  = rawBoxes;
     validatedData._addedPieces = rawStock;
+    validatedData._paymentType = data.paymentType;
+    validatedData._supplierName = data.supplierName;
+    validatedData._paidAmount = data.paidAmount;
     delete validatedData.stock;
     delete validatedData.boxes;
 
@@ -86,6 +89,9 @@ const productController = {
     // Pass granular counts to service for correct balance deduction
     validatedData._addedBoxes  = rawBoxes;
     validatedData._addedPieces = rawStock;
+    validatedData._paymentType = req.body.paymentType;
+    validatedData._supplierName = req.body.supplierName;
+    validatedData._paidAmount = req.body.paidAmount;
     delete validatedData.stock;
     delete validatedData.boxes;
 
@@ -94,6 +100,19 @@ const productController = {
     res.status(200).json({
       status: 'success',
       data: { product },
+    });
+  }),
+
+  payPurchaseDebt: catchAsync(async (req, res, next) => {
+    const { id } = req.params;
+    const { amount } = req.body;
+    if (!amount || Number(amount) <= 0) {
+      return next(new AppError('Payment amount must be greater than 0', 400));
+    }
+    const purchase = await productService.payPurchaseDebt(id, Number(amount));
+    res.status(200).json({
+      status: 'success',
+      data: { purchase },
     });
   }),
 

@@ -155,8 +155,11 @@ model PurchaseHistory {
   boxCostPrice   Decimal  @default(0) @map("box_cost_price")
   pieceCostPrice Decimal  @default(0) @map("piece_cost_price")
   totalCost      Decimal  @map("total_cost")
+  paidAmount     Decimal  @default(0) @map("paid_amount")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
+  paymentType    String   @default("CASH") @map("payment_type")
+  supplierName   String?  @map("supplier_name")
 
   @@map("purchase_histories")
 }

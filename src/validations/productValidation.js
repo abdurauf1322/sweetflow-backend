@@ -23,6 +23,9 @@ const baseProductSchema = z.object({
   stock: z.coerce.number().int().nonnegative().optional(),
   boxes: z.coerce.number().int().nonnegative().optional(),
   imageUrl: z.string().optional().or(z.literal('')),
+  paymentType: z.enum(['CASH', 'DEBT']).optional(),
+  supplierName: z.string().optional().nullable(),
+  paidAmount: z.coerce.number().nonnegative().optional(),
 });
 
 const createProductSchema = baseProductSchema.extend({
