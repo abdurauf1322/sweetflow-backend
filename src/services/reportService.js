@@ -137,8 +137,19 @@ const reportService = {
       },
     });
 
+    const paymentHistories = await prisma.paymentHistory.findMany({
+      where: {
+        createdAt: {
+          gte: startDate,
+          lte: endDate,
+        },
+        amount: { gt: 0 },
+        type: { in: ['ORDER_PAYMENT', 'DEBT_PAYMENT'] }
+      }
+    });
+
     let totalSales = 0;
-    let totalPaid = 0;
+    let totalPaid = paymentHistories.reduce((acc, curr) => acc + Number(curr.amount), 0);
 
     const totalDebtAggregate = await prisma.store.aggregate({
       _sum: {
@@ -160,7 +171,6 @@ const reportService = {
 
     for (const order of orders) {
       totalSales += Number(order.totalAmount);
-      totalPaid += (Number(order.totalAmount) - Number(order.debtAmount));
 
       // Calculate store stats
       const storeId = order.storeId;

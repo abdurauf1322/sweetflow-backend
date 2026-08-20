@@ -79,7 +79,11 @@ module.exports = (err, req, res, next) => {
   error.status = err.status || 'error';
   error.isOperational = err.isOperational || false;
 
-  if (err instanceof ZodError) {
+  if (err.name === 'MulterError' || (err.message && err.message.includes('rasmlar qabul qilinadi'))) {
+    error.statusCode = 400;
+    error.isOperational = true;
+    error.message = err.message || 'File upload error';
+  } else if (err instanceof ZodError) {
     const formatted = handleZodError(err);
     error = Object.assign(error, formatted);
     error.isOperational = true;
@@ -87,6 +91,10 @@ module.exports = (err, req, res, next) => {
     const formatted = handlePrismaError(err);
     error = Object.assign(error, formatted);
     error.isOperational = true;
+  } else if (err.name === 'PrismaClientValidationError') {
+    error.statusCode = 400;
+    error.isOperational = true;
+    error.message = 'Database Validation Error: Invalid data provided';
   }
 
   if (process.env.NODE_ENV === 'development') {

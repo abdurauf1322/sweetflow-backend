@@ -39,6 +39,9 @@ const categoryController = {
   getAllCategories: catchAsync(async (req, res, next) => {
     // 1. Retrieve all categories ordered by name ascending
     const categories = await prisma.category.findMany({
+      where: {
+        isDeleted: false,
+      },
       orderBy: {
         name: 'asc',
       },
@@ -51,6 +54,33 @@ const categoryController = {
       data: {
         categories,
       },
+    });
+  }),
+
+  deleteCategory: catchAsync(async (req, res, next) => {
+    const { id } = req.params;
+
+    const category = await prisma.category.findUnique({
+      where: { id },
+    });
+
+    if (!category) {
+      throw new AppError('Kategoriya topilmadi', 404);
+    }
+
+    // Soft delete
+    await prisma.category.update({
+      where: { id },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+        name: `${category.name}_deleted_${Date.now()}`,
+      },
+    });
+
+    res.status(204).json({
+      status: 'success',
+      data: null,
     });
   }),
 };

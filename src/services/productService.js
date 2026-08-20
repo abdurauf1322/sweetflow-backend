@@ -75,35 +75,22 @@ const productService = {
   },
 
   async deleteProduct(id) {
+    const productRepository = require('../repositories/productRepository');
+    const AppError = require('../utils/AppError');
     const product = await productRepository.findById(id);
     if (!product) {
       throw new AppError(`Product with ID ${id} not found`, 404);
     }
 
-    // 1. Check if product has historical order items or purchase history
-    const orderItemCount = await prisma.supplyOrderItem.count({
-      where: { productId: id },
+    // Soft delete: flag and rename name to release unique index
+    return prisma.product.update({
+      where: { id },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+        name: `${product.name}_deleted_${Date.now()}`,
+      },
     });
-
-    const purchaseHistoryCount = await prisma.purchaseHistory.count({
-      where: { productId: id },
-    });
-
-    if (orderItemCount > 0 || purchaseHistoryCount > 0) {
-      // Soft delete: flag and rename name to release unique index
-      return prisma.product.update({
-        where: { id },
-        data: {
-          isDeleted: true,
-          name: `${product.name}_deleted_${Date.now()}`,
-        },
-      });
-    } else {
-      // Hard delete
-      return prisma.product.delete({
-        where: { id },
-      });
-    }
   },
 
   async updateProduct(id, productData) {

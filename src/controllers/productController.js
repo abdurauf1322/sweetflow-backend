@@ -2,27 +2,23 @@ const productService = require('../services/productService');
 const { createProductSchema, updateProductSchema } = require('../validations/productValidation');
 const catchAsync = require('../utils/catchAsync');
 const prisma = require('../utils/prisma');
-const fs = require('fs');
-const path = require('path');
+const { removeLocalImage } = require('../config/multer');
 
-const removeOldImage = (imageUrl) => {
+/**
+ * Eski rasmni o'chirish:
+ */
+const removeOldImage = async (imageUrl) => {
   if (!imageUrl) return;
-  try {
-    const filename = imageUrl.split('/').pop();
-    const filePath = path.join(process.cwd(), 'uploads', filename);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
-  } catch (err) {
-    console.warn('Eski rasmni diskdan ochirishda xatolik:', err.message);
-  }
+  removeLocalImage(imageUrl);
 };
+
 
 const productController = {
   createProduct: catchAsync(async (req, res, next) => {
     let data = { ...req.body };
     if (req.file) {
-      data.imageUrl = req.file.filename;
+      // Local serverga saqlandi
+      data.imageUrl = `/uploads/${req.file.filename}`;
     }
     const rawBoxes = Number(data.boxes || 0);
     const rawStock = Number(data.stock  || 0);
@@ -86,7 +82,7 @@ const productController = {
     const oldProduct = await prisma.product.findUnique({ where: { id } });
     await productService.deleteProduct(id);
     if (oldProduct && oldProduct.imageUrl) {
-      removeOldImage(oldProduct.imageUrl);
+      await removeOldImage(oldProduct.imageUrl);
     }
 
     res.status(200).json({
@@ -105,16 +101,18 @@ const productController = {
     const oldProduct = await prisma.product.findUnique({ where: { id } });
 
     if (req.file) {
-      validatedData.imageUrl = req.file.filename;
+      // Yangi rasm local serverga yuklandi
+      validatedData.imageUrl = `/uploads/${req.file.filename}`;
       if (oldProduct && oldProduct.imageUrl) {
-        removeOldImage(oldProduct.imageUrl);
+        await removeOldImage(oldProduct.imageUrl);
       }
     } else if (req.body.removeImage === 'true' || req.body.removeImage === true) {
       validatedData.imageUrl = null;
       if (oldProduct && oldProduct.imageUrl) {
-        removeOldImage(oldProduct.imageUrl);
+        await removeOldImage(oldProduct.imageUrl);
       }
     }
+    // Agar rasm yuklanmasa va removeImage bo'lmasa — imageUrl o'zgarishsiz qoladi
 
     // Pass granular counts to service for correct balance deduction
     validatedData._addedBoxes  = rawBoxes;

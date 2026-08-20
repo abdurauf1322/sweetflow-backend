@@ -153,8 +153,18 @@ const orderService = {
           });
         }
 
-        // d. Update system balance with the paid amount
+        // d. Update system balance with the paid amount and record payment
         if (paidAmount > 0) {
+          await tx.paymentHistory.create({
+            data: {
+              storeId,
+              amount: paidAmount,
+              type: 'ORDER_PAYMENT',
+              paymentMethod: 'CASH',
+              note: "Buyurtma sotilishi vaqtidagi to'lov",
+            }
+          });
+
           const balanceService = require('./balanceService');
           await balanceService.updateBalance(paidAmount, tx);
         }

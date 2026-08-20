@@ -23,10 +23,15 @@ const storeService = {
           data: {
             storeId: store.id,
             amount: -initialDebt,
+            type: 'INITIAL_DEBT',
             paymentMethod: 'CASH',
-            note: "Boshlang'ich qoldiq qarz"
+            note: "Do'kon boshlang'ich qarzi kiritildi"
           }
         });
+        
+        // Asosiy balansdan qarz summasini ayirish
+        const balanceService = require('./balanceService');
+        await balanceService.updateBalance(-initialDebt, tx);
       }
       
       return store;
@@ -88,27 +93,15 @@ const storeService = {
       throw new AppError(`Cannot delete store with unpaid debt of ${Number(store.currentDebt).toLocaleString()} so'm`, 400);
     }
 
-    // 2. Verify if store has historical orders
-    const prisma = require('../utils/prisma');
-    const orderCount = await prisma.supplyOrder.count({
-      where: { storeId: id },
+    // Soft delete: flag isDeleted, update deletedAt, and rename phone to release unique index
+    return prisma.store.update({
+      where: { id },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+        phone: `${store.phone}_deleted_${Date.now()}`,
+      },
     });
-
-    if (orderCount > 0) {
-      // Soft delete: flag isDeleted and rename phone to release unique index
-      return prisma.store.update({
-        where: { id },
-        data: {
-          isDeleted: true,
-          phone: `${store.phone}_deleted_${Date.now()}`,
-        },
-      });
-    } else {
-      // Hard delete
-      return prisma.store.delete({
-        where: { id },
-      });
-    }
   },
 
   async getStoreCreditStatus(id) {
@@ -241,6 +234,7 @@ const storeService = {
         data: {
           storeId,
           amount,
+          type: 'DEBT_PAYMENT',
           paymentMethod,
           note,
         },
@@ -252,6 +246,7 @@ const storeService = {
           data: {
             storeId,
             amount: discount,
+            type: 'DEBT_PAYMENT',
             paymentMethod: 'DISCOUNT',
             note: '🎁 Chegirma / Qarzdan kechish',
           },

@@ -16,6 +16,7 @@ const uploadRoutes = require('./routes/uploadRoutes');
 const purchaseRoutes = require('./routes/purchaseRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const userRoutes = require('./routes/userRoutes');
+const trashRoutes = require('./routes/trashRoutes');
 const path = require('path');
 const fs = require('fs');
 
@@ -87,6 +88,7 @@ app.use('/api/v1/expenses/inventory', purchaseRoutes);
 app.use('/api/v1/analytics', analyticsRoutes);
 app.use('/api/expenses/inventory', purchaseRoutes);
 app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/trash', trashRoutes);
 
 // Handle undefined routes
 app.all('*', (req, res, next) => {
