@@ -1,15 +1,8 @@
+require('dotenv').config();
 const { PrismaClient } = require('@prisma/client');
 
-// Railway tashqi URL manzili to'g'ridan-to'g'ri ulanadi
-const directUrl = "postgresql://postgres:eXKlSsBYQcFDZTCucMjmckCBMENFzNc@hayabusa.proxy.rlwy.net:55460/railway";
-
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: directUrl
-    }
-  }
-});
+// Bazaga ulanish URL ini .env fayldan olish
+const prisma = new PrismaClient();
 
 async function hardReset() {
   console.log("Barcha test ma'lumotlarini tozalash boshlandi (Railway PostgreSQL)...");
