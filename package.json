@@ -5,9 +5,9 @@
   "description": "Qandchi Bola - Distribyutsiya va Kassa Tizimi",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js",
+    "start": "node node_modules/prisma/build/index.js db push --accept-data-loss && node src/server.js",
     "dev": "nodemon src/server.js",
-    "postinstall": "node node_modules/prisma/build/index.js generate && node node_modules/prisma/build/index.js db push --accept-data-loss",
+    "postinstall": "node node_modules/prisma/build/index.js generate",
     "prisma:generate": "node node_modules/prisma/build/index.js generate",
     "prisma:migrate": "npx prisma migrate dev"
   },
