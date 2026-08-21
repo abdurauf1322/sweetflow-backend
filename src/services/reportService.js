@@ -154,7 +154,16 @@ const reportService = {
       }
     });
 
-    const debtPayments = paymentHistories.filter(p => p.type === 'DEBT_PAYMENT');
+    const debtPayments = paymentHistories.filter(p => {
+      if (p.type !== 'DEBT_PAYMENT') return false;
+      if (p.paymentMethod === 'DISCOUNT') return false;
+      
+      const note = p.note ? p.note.toLowerCase() : '';
+      if (note.includes('chegirma') || note.includes('qarzdan kechish') || note.includes('qarzdankechish')) {
+        return false;
+      }
+      return true;
+    });
 
     let totalSales = 0;
     let totalPaid = paymentHistories.reduce((acc, curr) => acc + Number(curr.amount), 0);
