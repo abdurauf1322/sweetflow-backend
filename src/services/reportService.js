@@ -145,8 +145,16 @@ const reportService = {
         },
         amount: { gt: 0 },
         type: { in: ['ORDER_PAYMENT', 'DEBT_PAYMENT'] }
+      },
+      include: {
+        store: true
+      },
+      orderBy: {
+        createdAt: 'desc'
       }
     });
+
+    const debtPayments = paymentHistories.filter(p => p.type === 'DEBT_PAYMENT');
 
     let totalSales = 0;
     let totalPaid = paymentHistories.reduce((acc, curr) => acc + Number(curr.amount), 0);
@@ -308,6 +316,7 @@ const reportService = {
       productProfitList,
       soldProductsList,
       topSellers,
+      debtPayments,
     };
 
   },
