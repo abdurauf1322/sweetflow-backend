@@ -32,8 +32,27 @@ const productService = {
 
       if (totalCost > 0) {
         const paymentType = productData._paymentType || 'CASH';
-        const supplierName = productData._supplierName || null;
+        const supplierId = productData.supplierId || null;
         const paidAmount = productData._paidAmount !== undefined ? Number(productData._paidAmount) : (paymentType === 'CASH' ? totalCost : 0);
+        const debtAmount = paymentType === 'DEBT' ? totalCost - paidAmount : 0;
+        let supplierName = productData._supplierName || null;
+
+        if (supplierId) {
+          const supplier = await tx.supplier.findUnique({ where: { id: supplierId } });
+          if (supplier) {
+             supplierName = supplier.name;
+             if (debtAmount > 0) {
+               await tx.supplier.update({
+                 where: { id: supplierId },
+                 data: { totalDebt: { increment: debtAmount } }
+               });
+               await tx.product.update({
+                 where: { id: product.id },
+                 data: { debtAmount: { increment: debtAmount } }
+               });
+             }
+          }
+        }
 
         if (paidAmount > 0) {
           const balanceService = require('./balanceService');
@@ -51,8 +70,8 @@ const productService = {
             paidAmount: paidAmount,
             paymentType: paymentType,
             supplierName: supplierName,
-            debtAmount: paymentType === 'DEBT' ? totalCost - paidAmount : 0,
-            isPaid: paymentType === 'DEBT' ? (totalCost - paidAmount <= 0) : true
+            debtAmount: debtAmount,
+            isPaid: debtAmount <= 0
           }
         });
       }
@@ -134,6 +153,7 @@ const productService = {
       const cleanData = {
         name:          productData.name,
         categoryId:    productData.categoryId,
+        supplierId:    productData.supplierId || null,
         unitPrice:     productData.unitPrice,
         boxPrice:      productData.boxPrice,
         costPrice:     productData.costPrice,
@@ -152,14 +172,33 @@ const productService = {
         include: { category: true },
       });
 
-      // 5. Deduct cost from balance only when new goods are explicitly added
-      // _addedBoxes / _addedPieces are set by the controller from form input
       if (addedBoxes > 0 || addedPieces > 0) {
         const totalCost = (addedBoxes * boxCost) + (addedPieces * pieceCost);
         if (totalCost > 0) {
           const paymentType = productData._paymentType || 'CASH';
-          const supplierName = productData._supplierName || null;
+          const supplierId = productData.supplierId || product.supplierId || null;
           const paidAmount = productData._paidAmount !== undefined ? Number(productData._paidAmount) : (paymentType === 'CASH' ? totalCost : 0);
+          const debtAmount = paymentType === 'DEBT' ? totalCost - paidAmount : 0;
+          let supplierName = productData._supplierName || null;
+
+          if (supplierId) {
+            const supplier = await tx.supplier.findUnique({ where: { id: supplierId } });
+            if (supplier) {
+               supplierName = supplier.name;
+               if (debtAmount > 0) {
+                 await tx.supplier.update({
+                   where: { id: supplierId },
+                   data: { totalDebt: { increment: debtAmount } }
+                 });
+                 // Update product debt too
+                 updatedProduct = await tx.product.update({
+                   where: { id: product.id },
+                   data: { debtAmount: { increment: debtAmount } },
+                   include: { category: true }
+                 });
+               }
+            }
+          }
 
           if (paidAmount > 0) {
             const balanceService = require('./balanceService');
@@ -177,8 +216,8 @@ const productService = {
               paidAmount: paidAmount,
               paymentType: paymentType,
               supplierName: supplierName,
-              debtAmount: paymentType === 'DEBT' ? totalCost - paidAmount : 0,
-              isPaid: paymentType === 'DEBT' ? (totalCost - paidAmount <= 0) : true
+              debtAmount: debtAmount,
+              isPaid: debtAmount <= 0
             }
           });
         }

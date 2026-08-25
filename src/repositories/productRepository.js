@@ -11,6 +11,7 @@ const productRepository = {
     const {
       name,
       categoryId,
+      supplierId,
       unitPrice,
       boxPrice,
       costPrice,
@@ -18,6 +19,7 @@ const productRepository = {
       quantityInBox,
       stockCount,
       minStockLimit,
+      debtAmount,
       imageUrl,
     } = data;
 
@@ -25,6 +27,7 @@ const productRepository = {
       data: {
         name,
         categoryId,
+        supplierId:   supplierId || null,
         unitPrice,
         boxPrice,
         costPrice:    costPrice    ?? 0,
@@ -32,6 +35,7 @@ const productRepository = {
         quantityInBox,
         stockCount:   stockCount   ?? 0,
         minStockLimit: minStockLimit ?? 10,
+        debtAmount:   debtAmount   ?? 0,
         imageUrl:     imageUrl,
       },
       include: { category: true },
