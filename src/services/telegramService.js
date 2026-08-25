@@ -101,68 +101,60 @@ const sendOrderInvoice = async (chatId, order, store) => {
   const numericChatId = Number(String(chatId).trim());
   if (isNaN(numericChatId)) return;
 
-  const formattedSubtotal = Number(order.subtotal || order.totalAmount || 0).toLocaleString('uz-UZ');
-  const discountAmount = Number(order.discountAmount || 0);
-  const formattedDiscount = discountAmount.toLocaleString('uz-UZ');
-  const formattedTotal = Number(order.totalAmount || 0).toLocaleString('uz-UZ');
+  const formatMoney = (amount) => {
+    return Number(amount || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  };
+
+  const formattedTotal = formatMoney(order.totalAmount || 0);
   const paidAmountVal = Number(order.paidAmount) || (Number(order.totalAmount || 0) - Number(order.debtAmount || 0));
-  const formattedPaid = Number(paidAmountVal || 0).toLocaleString('uz-UZ');
-  const formattedDebt = Number(order.debtAmount || 0).toLocaleString('uz-UZ');
+  const formattedPaid = formatMoney(paidAmountVal);
+  const formattedDebt = formatMoney(order.debtAmount || 0);
   const currentTotalDebt = Number(store.currentDebt || 0) + Number(order.debtAmount || 0);
-  const formattedCurrentDebt = currentTotalDebt.toLocaleString('uz-UZ');
+  const formattedCurrentDebt = formatMoney(currentTotalDebt);
 
   let totalBoxes = 0;
   let totalItems = 0;
 
   let itemsText = '';
   if (order.items && order.items.length > 0) {
-    itemsText = order.items.map((item, index) => {
-      const price = Number(item.price || 0).toLocaleString('uz-UZ');
-      const total = Number(item.totalPrice || 0).toLocaleString('uz-UZ');
-      const unitLabel = item.unitType === 'BOX' ? 'blok' : 'dona';
+    itemsText = order.items.map((item) => {
+      const price = formatMoney(item.price);
+      const total = formatMoney(item.totalPrice);
       const quantityInBox = item.product?.quantityInBox || 1;
       
-      let itemLine = `${index + 1}. ${item.product?.name || item.productName || 'Mahsulot'}\n   └ ${item.quantity} ${unitLabel}`;
-      if (item.unitType === 'BOX' && quantityInBox > 1) {
-         itemLine += ` (${item.quantity * quantityInBox} dona)`;
+      let countText = '';
+      if (item.unitType === 'BOX') {
+         if (quantityInBox > 1) {
+             countText = `${item.quantity} blok (yoki ${item.quantity * quantityInBox} dona)`;
+         } else {
+             countText = `${item.quantity} blok`;
+         }
          totalBoxes += item.quantity;
          totalItems += item.quantity * quantityInBox;
       } else {
+         countText = `${item.quantity} dona`;
          totalItems += item.quantity;
       }
-      itemLine += ` × ${price} = ${total} so'm`;
-      return itemLine;
-    }).join('\n');
+      
+      return `🛒 ${item.product?.name || item.productName || 'Mahsulot'}\n📦 Soni: ${countText}\n💵 Narxi: ${price} so'm\n💰 Summa: ${total} so'm`;
+    }).join('\n\n');
   }
 
-  const storeAddress = store.address || "Ko'rsatilmagan";
-  const agentName = order.createdBy?.name || 'Admin';
-  const agentPhone = order.createdBy?.phone || '';
-  const orderDate = new Date(order.createdAt).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-
   const messageText = 
-`📋 <b>YANGI YUK XATI (NAKLADNOY)</b>
-━━━━━━━━━━━━━━━━━━━━
-🏢 <b>Mijoz:</b> ${store.name} (${store.ownerName})
-📍 <b>Manzil:</b> ${storeAddress}
-👤 <b>Agent:</b> ${agentName} ${agentPhone ? `(${agentPhone})` : ''}
-📞 <b>Tel:</b> ${store.phone}
-🧾 <b>Zakaz №:</b> ${order.id}
-📅 <b>Sana:</b> ${orderDate}
+`👤 ${store.name} (${store.ownerName || "Noma'lum"})
+━━━━━━━━━━━━━━━━━━
+📢 Bugungi savdolar:
 
-📦 <b>BUYURTMA TARKIBI:</b>
 ${itemsText}
-━━━━━━━━━━━━━━━━━━━━
-📊 <b>Jami hajm:</b> ${totalBoxes} blok | ${totalItems} dona
-💵 <b>Umumiy summa:</b> ${formattedSubtotal} so'm
-${discountAmount > 0 ? `🎁 <b>Chegirma:</b> ${formattedDiscount} so'm\n` : ''}💰 <b>To'lanishi kerak:</b> ${formattedTotal} so'm
 
-💳 <b>TO'LOV:</b>
-🟢 <b>Naqd:</b> ${formattedPaid} so'm
-🔴 <b>Nasiya (Qarz):</b> ${formattedDebt} so'm`;
+📊 Jami: ${totalBoxes > 0 ? `${totalBoxes} blok / ` : ''}${totalItems} dona | ${formattedTotal} so'm
+💵 Berilgan (Naqd/Karta to'langan): ${formattedPaid} so'm
+💰 Olingan (Nasiya/Qarz to'lovi): ${formattedDebt} so'm
+📈 Bugungi savdo: ${formattedTotal} so'm
+💼 Yakuniy qoldiq (Do'konning jami qarzi): ${formattedCurrentDebt} so'm`;
 
   try {
-    const result = await bot.sendMessage(numericChatId, messageText, { parse_mode: 'HTML' });
+    const result = await bot.sendMessage(numericChatId, messageText);
     console.log(`✅ Yuk xati Telegramga yuborildi. ChatID: ${numericChatId}`);
     return result;
   } catch (error) {
