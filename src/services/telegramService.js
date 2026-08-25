@@ -118,7 +118,6 @@ const sendOrderInvoice = async (chatId, order, store) => {
   let itemsText = '';
   if (order.items && order.items.length > 0) {
     itemsText = order.items.map((item) => {
-      const price = formatMoney(item.price);
       const total = formatMoney(item.totalPrice);
       const quantityInBox = item.product?.quantityInBox || 1;
       
@@ -135,8 +134,20 @@ const sendOrderInvoice = async (chatId, order, store) => {
          countText = `${item.quantity} dona`;
          totalItems += item.quantity;
       }
+
+      const productName = item.product?.name || item.productName || 'Mahsulot';
+      const piecePrice = item.product?.piecePrice || (item.unitType === 'PIECE' ? item.price : Math.round(item.price / (quantityInBox || 1)));
+      const boxPrice = item.product?.boxPrice;
+
+      let itemStr = `🛒 ${productName}\n📦 Soni: ${countText}\n💵 Dona narxi: ${formatMoney(piecePrice)} so'm`;
       
-      return `🛒 ${item.product?.name || item.productName || 'Mahsulot'}\n📦 Soni: ${countText}\n💵 Narxi: ${price} so'm\n💰 Summa: ${total} so'm`;
+      if (boxPrice) {
+         itemStr += `\n📦 Blok narxi: ${formatMoney(boxPrice)} so'm`;
+      }
+      
+      itemStr += `\n💰 Summa: ${total} so'm`;
+      
+      return itemStr;
     }).join('\n\n');
   }
 
