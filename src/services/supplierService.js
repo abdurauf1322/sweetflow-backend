@@ -22,46 +22,19 @@ const supplierService = {
   },
 
   async getSupplierDebts() {
-    const suppliers = await prisma.supplier.findMany({
+    return prisma.purchaseHistory.findMany({
       where: {
-        OR: [
-          { totalDebt: { gt: 0 } },
-          { products: { some: { debtAmount: { gt: 0 } } } }
-        ]
+        paymentType: 'DEBT',
+        isPaid: false,
+        debtAmount: { gt: 0 }
       },
       include: {
-        products: {
-          where: {
-            debtAmount: { gt: 0 }
-          }
-        }
+        product: true
       },
-      orderBy: { name: 'asc' },
-    });
-
-    suppliers.forEach(supplier => {
-      const productsDebt = supplier.products.reduce((sum, p) => sum + (p.debtAmount || 0), 0);
-      supplier.totalDebt = Math.max(supplier.totalDebt || 0, productsDebt);
-    });
-
-    const unknownProducts = await prisma.product.findMany({
-      where: {
-        supplierId: null,
-        debtAmount: { gt: 0 }
+      orderBy: {
+        createdAt: 'asc'
       }
     });
-
-    if (unknownProducts.length > 0) {
-      const totalUnknownDebt = unknownProducts.reduce((sum, p) => sum + p.debtAmount, 0);
-      suppliers.push({
-        id: 'unknown',
-        name: "Noma'lum ta'minotchi",
-        totalDebt: totalUnknownDebt,
-        products: unknownProducts
-      });
-    }
-
-    return suppliers;
   },
 
   async paySupplierDebt(supplierId, amount, productId = null) {
