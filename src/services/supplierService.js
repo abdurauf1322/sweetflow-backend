@@ -22,10 +22,12 @@ const supplierService = {
   },
 
   async getSupplierDebts() {
-    // Get suppliers with their debt amount > 0, and products grouped by supplier
-    return prisma.supplier.findMany({
+    const suppliers = await prisma.supplier.findMany({
       where: {
-        totalDebt: { gt: 0 }
+        OR: [
+          { totalDebt: { gt: 0 } },
+          { products: { some: { debtAmount: { gt: 0 } } } }
+        ]
       },
       include: {
         products: {
@@ -36,6 +38,30 @@ const supplierService = {
       },
       orderBy: { name: 'asc' },
     });
+
+    suppliers.forEach(supplier => {
+      const productsDebt = supplier.products.reduce((sum, p) => sum + (p.debtAmount || 0), 0);
+      supplier.totalDebt = Math.max(supplier.totalDebt || 0, productsDebt);
+    });
+
+    const unknownProducts = await prisma.product.findMany({
+      where: {
+        supplierId: null,
+        debtAmount: { gt: 0 }
+      }
+    });
+
+    if (unknownProducts.length > 0) {
+      const totalUnknownDebt = unknownProducts.reduce((sum, p) => sum + p.debtAmount, 0);
+      suppliers.push({
+        id: 'unknown',
+        name: "Noma'lum ta'minotchi",
+        totalDebt: totalUnknownDebt,
+        products: unknownProducts
+      });
+    }
+
+    return suppliers;
   },
 
   async paySupplierDebt(supplierId, amount, productId = null) {

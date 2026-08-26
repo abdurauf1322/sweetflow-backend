@@ -287,12 +287,19 @@ const reportService = {
     const totalExpenses = purchaseHistoryList.reduce((acc, curr) => acc + Number(curr.paidAmount || 0), 0);
     const totalOtherExpenses = expensesList.reduce((acc, curr) => acc + Number(curr.amount), 0);
     
-    const totalSupplierDebt = purchaseHistoryList.reduce((acc, curr) => {
-      if (curr.paymentType === 'DEBT' && !curr.isPaid) {
-        return acc + Number(curr.debtAmount || 0);
-      }
-      return acc;
-    }, 0);
+    const suppliersForDebt = await prisma.supplier.findMany({
+      include: { products: { where: { debtAmount: { gt: 0 } } } }
+    });
+    let totalSupplierDebt = 0;
+    suppliersForDebt.forEach(supplier => {
+      const productsDebt = supplier.products.reduce((sum, p) => sum + (p.debtAmount || 0), 0);
+      totalSupplierDebt += Math.max(supplier.totalDebt || 0, productsDebt);
+    });
+
+    const unknownProductsForDebt = await prisma.product.findMany({
+      where: { supplierId: null, debtAmount: { gt: 0 } }
+    });
+    totalSupplierDebt += unknownProductsForDebt.reduce((sum, p) => sum + (p.debtAmount || 0), 0);
     
     const netProfit = totalSales - totalCOGS - totalOtherExpenses;
     const profitPercentage = totalSales > 0 ? (netProfit / totalSales) * 100 : 0;
