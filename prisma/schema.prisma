@@ -162,6 +162,8 @@ model PurchaseHistory {
   addedPieces    Int      @default(0) @map("added_pieces")
   boxCostPrice   Decimal  @default(0) @map("box_cost_price")
   pieceCostPrice Decimal  @default(0) @map("piece_cost_price")
+  unitPrice      Decimal  @default(0) @map("unit_price")
+  boxPrice       Decimal  @default(0) @map("box_price")
   totalCost      Decimal  @map("total_cost")
   paidAmount     Decimal  @default(0) @map("paid_amount")
   debtAmount     Decimal  @default(0) @map("debt_amount")
@@ -170,6 +172,7 @@ model PurchaseHistory {
   updatedAt      DateTime @updatedAt @map("updated_at")
   paymentType    String   @default("CASH") @map("payment_type")
   supplierName   String?  @map("supplier_name")
+  actionType     String   @default("NEW_PRODUCT") @map("action_type") // NEW_PRODUCT, ADD_STOCK, SYNC
 
   @@map("purchase_histories")
 }

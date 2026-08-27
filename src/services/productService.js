@@ -66,12 +66,15 @@ const productService = {
             addedPieces: initPieces,
             boxCostPrice: boxCost,
             pieceCostPrice: pieceCost,
+            unitPrice: Number(productData.unitPrice || 0),
+            boxPrice: Number(productData.boxPrice || 0),
             totalCost: totalCost,
             paidAmount: paidAmount,
             paymentType: paymentType,
             supplierName: supplierName,
             debtAmount: debtAmount,
-            isPaid: debtAmount <= 0
+            isPaid: debtAmount <= 0,
+            actionType: 'NEW_PRODUCT'
           }
         });
       }
@@ -212,12 +215,15 @@ const productService = {
               addedPieces: addedPieces,
               boxCostPrice: boxCost,
               pieceCostPrice: pieceCost,
+              unitPrice: Number(productData.unitPrice !== undefined ? productData.unitPrice : product.unitPrice),
+              boxPrice: Number(productData.boxPrice !== undefined ? productData.boxPrice : product.boxPrice),
               totalCost: totalCost,
               paidAmount: paidAmount,
               paymentType: paymentType,
               supplierName: supplierName,
               debtAmount: debtAmount,
-              isPaid: debtAmount <= 0
+              isPaid: debtAmount <= 0,
+              actionType: 'ADD_STOCK'
             }
           });
         }
@@ -310,12 +316,15 @@ const productService = {
               addedPieces: pieces,
               boxCostPrice: boxCostPrice,
               pieceCostPrice: pieceCostPrice,
+              unitPrice: Number(product.unitPrice || 0),
+              boxPrice: Number(product.boxPrice || 0),
               totalCost: totalCost,
               paidAmount: totalCost, // Paid in cash
               debtAmount: 0,
               isPaid: true,
               paymentType: 'CASH',
-              supplierName: 'System Sync (Existing Stock)'
+              supplierName: 'System Sync (Existing Stock)',
+              actionType: 'SYNC'
             }
           });
 
@@ -334,6 +343,19 @@ const productService = {
         totalSyncedCost
       };
     }, { maxWait: 30000, timeout: 60000 }); // give it a longer timeout in case of many products
+  },
+
+  async getPurchaseHistory() {
+    return prisma.purchaseHistory.findMany({
+      include: {
+        product: {
+          select: { name: true }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
   },
 };
 

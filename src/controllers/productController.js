@@ -153,6 +153,17 @@ const productController = {
     });
   }),
 
+  getPurchaseHistory: catchAsync(async (req, res, next) => {
+    const history = await productService.getPurchaseHistory();
+    res.status(200).json({
+      status: 'success',
+      results: history.length,
+      data: {
+        history,
+      },
+    });
+  }),
+
 };
 
 module.exports = productController;
