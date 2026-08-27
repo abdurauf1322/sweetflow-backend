@@ -151,6 +151,8 @@ const sendOrderInvoice = async (chatId, order, store) => {
     }).join('\n\n');
   }
 
+  const discountVal = Number(order.discount) || 0;
+
   const messageText = 
 `👤 ${store.name} (${store.ownerName || "Noma'lum"})
 ━━━━━━━━━━━━━━━━━━
@@ -159,7 +161,7 @@ const sendOrderInvoice = async (chatId, order, store) => {
 ${itemsText}
 
 📊 Jami: ${totalBoxes > 0 ? `${totalBoxes} blok / ` : ''}${totalItems} dona | ${formattedTotal} so'm
-💵 Berilgan (Naqd/Karta to'langan): ${formattedPaid} so'm
+${discountVal > 0 ? `🎁 Chegirma: ${formatMoney(discountVal)} so'm\n` : ''}💵 Berilgan (Naqd/Karta to'langan): ${formattedPaid} so'm
 💰 Olingan (Nasiya/Qarz to'lovi): ${formattedDebt} so'm
 📈 Bugungi savdo: ${formattedTotal} so'm
 💼 Yakuniy qoldiq (Do'konning jami qarzi): ${formattedCurrentDebt} so'm`;
