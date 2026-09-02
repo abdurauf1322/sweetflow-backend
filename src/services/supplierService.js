@@ -22,19 +22,36 @@ const supplierService = {
   },
 
   async getSupplierDebts() {
-    return prisma.purchaseHistory.findMany({
-      where: {
-        paymentType: 'DEBT',
-        isPaid: false,
-        debtAmount: { gt: 0 }
-      },
-      include: {
-        product: true
-      },
-      orderBy: {
-        createdAt: 'asc'
-      }
+    const suppliers = await prisma.supplier.findMany({
+      where: { totalDebt: { gt: 0 } },
+      orderBy: { name: 'asc' }
     });
+
+    const result = [];
+    for (const supplier of suppliers) {
+      const products = await prisma.product.findMany({
+        where: { supplierId: supplier.id },
+        select: { id: true }
+      });
+      const productIds = products.map(p => p.id);
+
+      const purchases = await prisma.purchaseHistory.findMany({
+        where: {
+          productId: { in: productIds },
+          paymentType: 'DEBT',
+          isPaid: false
+        },
+        include: { product: true },
+        orderBy: { createdAt: 'asc' }
+      });
+
+      result.push({
+        ...supplier,
+        purchases
+      });
+    }
+
+    return result;
   },
 
   async paySupplierDebt(supplierId, amount, productId = null) {
@@ -62,6 +79,28 @@ const supplierService = {
           where: { id: productId },
           data: { debtAmount: { decrement: amount } }
         });
+        
+        // PurchaseHistory uchun ham yopish
+        const purchaseHistories = await tx.purchaseHistory.findMany({
+          where: { productId: product.id, paymentType: 'DEBT', isPaid: false },
+          orderBy: { createdAt: 'asc' }
+        });
+        
+        let pRemaining = amount;
+        for (const ph of purchaseHistories) {
+          if (pRemaining <= 0) break;
+          const phDebt = Number(ph.totalCost) - Number(ph.paidAmount || 0);
+          const payPh = Math.min(phDebt, pRemaining);
+          await tx.purchaseHistory.update({
+            where: { id: ph.id },
+            data: {
+              paidAmount: Number(ph.paidAmount || 0) + payPh,
+              isPaid: (Number(ph.paidAmount || 0) + payPh) >= Number(ph.totalCost)
+            }
+          });
+          pRemaining -= payPh;
+        }
+
         remainingAmount = 0;
       } else {
         // Umumiy qarzni to'lash - mahsulotlar qarzini kamaytirib chiqish
@@ -77,6 +116,28 @@ const supplierService = {
             where: { id: product.id },
             data: { debtAmount: { decrement: payForProduct } }
           });
+          
+          // Shuningdek, PurchaseHistory ni ham yangilash
+          const purchaseHistories = await tx.purchaseHistory.findMany({
+            where: { productId: product.id, paymentType: 'DEBT', isPaid: false },
+            orderBy: { createdAt: 'asc' }
+          });
+          
+          let pRemaining = payForProduct;
+          for (const ph of purchaseHistories) {
+            if (pRemaining <= 0) break;
+            const phDebt = Number(ph.totalCost) - Number(ph.paidAmount || 0);
+            const payPh = Math.min(phDebt, pRemaining);
+            await tx.purchaseHistory.update({
+              where: { id: ph.id },
+              data: {
+                paidAmount: Number(ph.paidAmount || 0) + payPh,
+                isPaid: (Number(ph.paidAmount || 0) + payPh) >= Number(ph.totalCost)
+              }
+            });
+            pRemaining -= payPh;
+          }
+
           remainingAmount -= payForProduct;
         }
       }

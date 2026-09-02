@@ -25,6 +25,7 @@ const baseProductSchema = z.object({
   imageUrl: z.string().optional().or(z.literal('')),
   paymentType: z.enum(['CASH', 'DEBT']).optional(),
   supplierName: z.string().optional().nullable(),
+  supplierId: z.string().optional().nullable(),
   paidAmount: z.coerce.number().nonnegative().optional(),
 });
 
