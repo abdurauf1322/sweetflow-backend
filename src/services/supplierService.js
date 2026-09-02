@@ -51,6 +51,26 @@ const supplierService = {
       });
     }
 
+    const unknownPurchases = await prisma.purchaseHistory.findMany({
+      where: {
+        product: { supplierId: null },
+        paymentType: 'DEBT',
+        isPaid: false
+      },
+      include: { product: true },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    if (unknownPurchases.length > 0) {
+      const totalUnknownDebt = unknownPurchases.reduce((sum, ph) => sum + (Number(ph.debtAmount) || (Number(ph.totalCost) - Number(ph.paidAmount || 0))), 0);
+      result.push({
+        id: 'unknown-supplier-id',
+        name: "Noma'lum ta'minotchi",
+        totalDebt: totalUnknownDebt,
+        purchases: unknownPurchases
+      });
+    }
+
     return result;
   },
 
