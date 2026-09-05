@@ -169,7 +169,7 @@ const productService = {
       // Drop any undefined entries so Prisma doesn't try to set them to null
       Object.keys(cleanData).forEach(k => cleanData[k] === undefined && delete cleanData[k]);
 
-      const updatedProduct = await tx.product.update({
+      let updatedProduct = await tx.product.update({
         where: { id },
         data: cleanData,
         include: { category: true },
