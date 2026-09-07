@@ -178,13 +178,6 @@ const supplierService = {
         }
       });
 
-      // Xarajat (Expense) sifatida yozish (Ixtiyoriy, agar kassadan chiqimni Expense sifatida saqlash kerak bo'lsa)
-      await tx.expense.create({
-        data: {
-          amount,
-          description: `Ta'minotchiga qarz to'landi: ${supplier.name}`
-        }
-      });
 
       return updatedSupplier;
     });
