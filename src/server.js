@@ -16,8 +16,25 @@ const { initBotHandler, stopBotHandler } = require('./services/botHandler');
 const port = process.env.PORT || 5000;
 
 // Start Express Server
-const server = app.listen(port, () => {
+const server = app.listen(port, async () => {
   console.log(`Application running in ${process.env.NODE_ENV || 'development'} mode on port ${port}...`);
+  
+  // FIX: Avtomatik tarzda xato tushib qolgan xarajatlarni tozalash (faqat ishlab turganda bir marta tekshiradi)
+  try {
+    const deletedExpenses = await prisma.expense.deleteMany({
+      where: {
+        description: {
+          startsWith: "Ta'minotchiga qarz to'landi"
+        }
+      }
+    });
+    if (deletedExpenses.count > 0) {
+      console.log(`=> DIQQAT: Bazadan ${deletedExpenses.count} ta xato xarajat tozalandi va tahlillar joyiga keldi!`);
+    }
+  } catch (error) {
+    console.error("Xarajatlarni tozalashda xatolik yuz berdi:", error);
+  }
+
   // Initialize cron jobs
   initCronJobs();
   // Initialize Telegram bot (contact auto-linking)
