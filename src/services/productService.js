@@ -14,6 +14,16 @@ const productService = {
       throw new AppError(`Category with ID ${categoryId} does not exist`, 400);
     }
 
+    // Auto-assign supplier from category if missing and payment type is DEBT
+    if (!productData.supplierId && productData._paymentType === 'DEBT') {
+        let supplier = await prisma.supplier.findUnique({ where: { name: categoryExists.name } });
+        if (!supplier) {
+            supplier = await prisma.supplier.create({ data: { name: categoryExists.name } });
+        }
+        productData.supplierId = supplier.id;
+        productData._supplierName = supplier.name;
+    }
+
     // 2. Check if product with this name already exists
     const existingProduct = await productRepository.findByName(name);
     if (existingProduct) {
@@ -124,6 +134,16 @@ const productService = {
     });
     if (!categoryExists) {
       throw new AppError(`Category with ID ${categoryId} does not exist`, 400);
+    }
+
+    // Auto-assign supplier from category if missing and payment type is DEBT
+    if (!productData.supplierId && productData._paymentType === 'DEBT') {
+        let supplier = await prisma.supplier.findUnique({ where: { name: categoryExists.name } });
+        if (!supplier) {
+            supplier = await prisma.supplier.create({ data: { name: categoryExists.name } });
+        }
+        productData.supplierId = supplier.id;
+        productData._supplierName = supplier.name;
     }
 
     return prisma.$transaction(async (tx) => {
